@@ -104,89 +104,67 @@ export default function Header() {
             </div>
 
             {/* Right Side - Desktop User Actions */}
-            <div className="hidden md:flex items-center gap-4">
-              {user ? (
-                <>
-                  {/* Dashboard Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate("/workspaces")}
-                    className="px-4 py-2 sm:px-6 sm:py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-shadow"
-                  >
-                    Dashboard
-                  </motion.button>
+         <div className="hidden md:flex items-center gap-4">
+  {user ? (
+    <>
+      {/* Dashboard Button */}
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => navigate("/workspaces")}
+        className="px-4 py-2 sm:px-6 sm:py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-shadow"
+      >
+        Dashboard
+      </motion.button>
 
-                  {/* User Info - Show Full Name */}
-                  <div className="relative group">
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      className="flex items-center gap-3 px-3 sm:px-4 py-2 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors"
-                    >
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                        <span className="font-bold text-white text-xs sm:text-sm">
-                          {getUserAvatarText()}
-                        </span>
-                      </div>
-                      <div className="text-left">
-                        <p className="font-medium text-gray-900 text-sm sm:text-base">{getUserDisplayName()}</p>
-                        <p className="text-xs sm:text-sm text-gray-500">{user.email}</p>
-                      </div>
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    </motion.div>
+      {/* User Info - Always show */}
+      <div className="flex items-center gap-3 px-3 sm:px-4 py-2 rounded-xl bg-gray-100 cursor-pointer">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+          <span className="font-bold text-white text-xs sm:text-sm">
+            {getUserAvatarText()}
+          </span>
+        </div>
+        <div className="text-left">
+          <p className="font-medium text-gray-900 text-sm sm:text-base">{getUserDisplayName()}</p>
+          <p className="text-xs sm:text-sm text-gray-500">{user.email}</p>
+        </div>
+      </div>
 
-                    {/* Dropdown Menu */}
-                    <div className="absolute right-0 top-full mt-2 w-56 sm:w-64 bg-white rounded-xl shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                      <div className="p-4 border-b border-gray-100">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                            <span className="font-bold text-white text-sm">
-                              {getUserAvatarText()}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">{getUserDisplayName()}</p>
-                            <p className="text-xs sm:text-sm text-gray-500 truncate">{user.email}</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="p-2">
-                        <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors"
-                        >
-                          <FiLogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                          <span className="font-medium text-sm sm:text-base">Logout</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Sign In Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate("/signin")}
-                    className="px-4 py-2 sm:px-6 sm:py-2.5 text-gray-700 font-semibold hover:text-gray-900 transition-colors"
-                  >
-                    Sign In
-                  </motion.button>
+      {/* Logout Button - Always visible */}
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={handleLogout}
+        className="px-4 py-2 sm:px-6 sm:py-2.5 bg-red-50 text-red-600 rounded-xl font-semibold hover:bg-red-100 transition-colors"
+      >
+        Logout
+      </motion.button>
+    </>
+  ) : (
+    <>
+      {/* Sign In Button */}
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => navigate("/signin")}
+        className="px-4 py-2 sm:px-6 sm:py-2.5 text-gray-700 font-semibold hover:text-gray-900 transition-colors"
+      >
+        Sign In
+      </motion.button>
 
-                  {/* Get Started Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate("/signup")}
-                    className="px-4 py-2 sm:px-6 sm:py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-shadow"
-                  >
-                    Get Started Free
-                  </motion.button>
-                </>
-              )}
-            </div>
+      {/* Get Started Button */}
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => navigate("/signup")}
+        className="px-4 py-2 sm:px-6 sm:py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-shadow"
+      >
+        Get Started Free
+      </motion.button>
+    </>
+  )}
+</div>
+
 
             {/* Mobile Menu Button */}
             <button
