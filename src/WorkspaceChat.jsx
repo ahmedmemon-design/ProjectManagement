@@ -1,0 +1,3394 @@
+import { useState, useEffect, useRef, useCallback, useMemo, useContext } from "react";
+import { supabase } from "./lib/supabase";
+import { 
+  FiMessageSquare, 
+  FiSearch, 
+  FiSend, 
+  FiUsers,
+  FiUserPlus,
+  FiCheck,
+  FiX,
+  FiChevronLeft,
+  FiCheckCircle,
+  FiPlus,
+  FiWifi,
+  FiWifiOff,
+  FiAlertCircle,
+  FiEdit2,
+  FiSettings,
+  FiTrash2,
+  FiLogOut,
+  FiChevronsDown,
+  FiUser,
+  FiUserMinus,
+  FiUserCheck,
+  FiMoreVertical,
+  FiClock,
+  FiRefreshCw
+} from "react-icons/fi";
+
+import { AuthContext } from "./context/AuthContext";
+
+// ✅ New Components for Modals and Animations
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = "Confirm", cancelText = "Cancel", type = "warning" }) => {
+  if (!isOpen) return null;
+
+  const getColors = () => {
+    switch (type) {
+      case "danger": return { bg: "from-red-50 to-red-50", border: "border-red-200", text: "text-red-700", button: "bg-gradient-to-r from-red-600 to-red-700" };
+      case "warning": return { bg: "from-yellow-50 to-orange-50", border: "border-yellow-200", text: "text-yellow-700", button: "bg-gradient-to-r from-yellow-600 to-orange-600" };
+      case "success": return { bg: "from-green-50 to-emerald-50", border: "border-green-200", text: "text-green-700", button: "bg-gradient-to-r from-green-600 to-emerald-600" };
+      default: return { bg: "from-blue-50 to-purple-50", border: "border-blue-200", text: "text-blue-700", button: "bg-gradient-to-r from-blue-600 to-purple-600" };
+    }
+  };
+
+  const colors = getColors();
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className={`bg-gradient-to-br ${colors.bg} rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border ${colors.border} animate-scale-in`}>
+        <div className="p-8">
+          <div className="flex items-center justify-center mb-6">
+            <div className={`w-20 h-20 rounded-full ${type === 'danger' ? 'bg-gradient-to-r from-red-100 to-red-200' : type === 'warning' ? 'bg-gradient-to-r from-yellow-100 to-orange-100' : 'bg-gradient-to-r from-blue-100 to-purple-100'} flex items-center justify-center`}>
+              <FiAlertCircle className={`w-10 h-10 ${type === 'danger' ? 'text-red-600' : type === 'warning' ? 'text-yellow-600' : 'text-blue-600'}`} />
+            </div>
+          </div>
+          
+          <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">{title}</h3>
+          <p className={`text-lg ${colors.text} text-center mb-8`}>{message}</p>
+          
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={onConfirm}
+              className={`py-4 text-white font-bold rounded-xl hover:shadow-xl transition-all duration-200 ${colors.button}`}
+            >
+              {confirmText}
+            </button>
+            <button
+              onClick={onClose}
+              className="py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
+            >
+              {cancelText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const LoadingOverlay = ({ message = "Loading..." }) => (
+  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
+    <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm mx-4 animate-scale-in">
+      <div className="flex flex-col items-center">
+        <div className="relative mb-6">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+            <FiRefreshCw className="w-10 h-10 text-white animate-spin" />
+          </div>
+          <div className="absolute -inset-4 rounded-full border-4 border-blue-500/30 animate-ping"></div>
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Please wait</h3>
+        <p className="text-gray-600 text-center">{message}</p>
+      </div>
+    </div>
+  </div>
+);
+
+export default function WorkspaceChat({ workspaceId, currentUser }) {
+  // State variables
+  const [conversations, setConversations] = useState([]);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [showMemberSearch, setShowMemberSearch] = useState(false);
+  const [showGroupCreator, setShowGroupCreator] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [allMembers, setAllMembers] = useState([]);
+  const [messageLoading, setMessageLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [conversationMembers, setConversationMembers] = useState({});
+  const [conversationOtherMembers, setConversationOtherMembers] = useState({});
+  const [conversationAdmins, setConversationAdmins] = useState({});
+  const [conversationOwner, setConversationOwner] = useState({});
+  
+  // Online status states
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [typingUsers, setTypingUsers] = useState({});
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  
+  // Group management states
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [editingGroupName, setEditingGroupName] = useState("");
+  const [isEditingGroup, setIsEditingGroup] = useState(false);
+  const [showAddMembers, setShowAddMembers] = useState(false);
+  const [membersToAdd, setMembersToAdd] = useState([]);
+
+  // ✅ NEW STATES
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState("Loading conversations...");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationConfig, setConfirmationConfig] = useState({
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    type: "warning"
+  });
+
+
+  // Refs
+  const messagesEndRef = useRef(null);
+  const messageInputRef = useRef(null);
+  const messageChannelRef = useRef(null);
+  const presenceChannelRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const lastTypingTimeRef = useRef(0);
+  const groupNameInputRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const editGroupInputRef = useRef(null);
+  const addMembersInputRef = useRef(null);
+  
+  const isInitializedRef = useRef(false);
+  const typingTimeoutsRef = useRef({});
+
+  const { profile } = useContext(AuthContext);
+  const isAdmin = profile?.role === "admin";
+
+  // ✅ CLEANUP: Only on unmount
+  useEffect(() => {
+    return () => {
+      console.log("🧹 Component unmounting - cleaning up all channels");
+      if (presenceChannelRef.current) {
+        supabase.removeChannel(presenceChannelRef.current);
+      }
+      if (messageChannelRef.current) {
+        supabase.removeChannel(messageChannelRef.current);
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      // Clear all typing timeouts
+      Object.values(typingTimeoutsRef.current).forEach(timeout => {
+        clearTimeout(timeout);
+      });
+    };
+  }, []);
+
+  // ✅ INITIAL LOAD: Only once on mount with loading animation
+  useEffect(() => {
+    if (!workspaceId || !currentUser?.id || isInitializedRef.current) {
+      return;
+    }
+
+    console.log("🚀 Initial load starting...");
+    setIsLoading(true);
+    setLoadingMessage("Loading workspace...");
+    isInitializedRef.current = true;
+
+    const loadInitialData = async () => {
+      try {
+        await Promise.all([
+          loadWorkspaceMembers(),
+          loadConversations()
+        ]);
+        console.log("✅ Initial load complete");
+        setIsLoading(false);
+      } catch (error) {
+        console.error("❌ Error loading initial data:", error);
+        setError("Failed to load data");
+        setIsLoading(false);
+      }
+    };
+
+    // Small delay for smooth animation
+    setTimeout(() => {
+      loadInitialData();
+    }, 300);
+  }, [workspaceId, currentUser?.id]);
+
+  // Load workspace members with loading state
+  const loadWorkspaceMembers = async () => {
+    try {
+      setLoadingMessage("Loading team members...");
+      const { data: workspaceMembers, error: membersError } = await supabase
+        .from("workspace_members")
+        .select("user_id, role")
+        .eq("workspace_id", workspaceId);
+
+      if (membersError) throw membersError;
+
+      if (!workspaceMembers || workspaceMembers.length === 0) {
+        setAllMembers([]);
+        return;
+      }
+
+      const userIds = workspaceMembers.map(member => member.user_id);
+      
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, name, email")
+        .in("id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      const combinedData = workspaceMembers.map(member => {
+        const profile = profiles?.find(p => p.id === member.user_id);
+        return {
+          id: member.user_id,
+          user_id: member.user_id,
+          role: member.role,
+          name: profile?.name || "Unknown User",
+          email: profile?.email || "",
+          avatar: profile?.name?.charAt(0).toUpperCase() || "U"
+        };
+      }).filter(member => member.name !== "Unknown User");
+
+      setAllMembers(combinedData);
+      
+    } catch (error) {
+      console.error("Error fetching members:", error);
+      setAllMembers([]);
+    }
+  };
+
+  // Load conversations with loading state
+  const loadConversations = async () => {
+    try {
+      setLoadingMessage("Loading conversations...");
+      const { data: convData, error: convError } = await supabase
+        .from("conversation_members")
+        .select(`
+          conversation_id,
+          role,
+          conversations (
+            id,
+            workspace_id,
+            name,
+            is_group,
+            created_at,
+            created_by,
+            last_message_at,
+            last_message
+          )
+        `)
+        .eq("user_id", currentUser?.id);
+
+      if (convError) throw convError;
+
+      const userConversations = convData
+        ?.map(item => item.conversations)
+        ?.filter(conv => conv?.workspace_id === workspaceId)
+        ?.sort((a, b) => new Date(b.last_message_at || b.created_at) - new Date(a.last_message_at || a.created_at)) || [];
+
+      setConversations(userConversations);
+      
+      if (userConversations.length > 0) {
+        await loadConversationDetails(userConversations);
+      }
+    } catch (error) {
+      console.error("Error loading conversations:", error);
+      setConversations([]);
+    }
+  };
+
+  // Load conversation details including members, admins, and owner
+  const loadConversationDetails = async (conversationsList) => {
+    try {
+      setLoadingMessage("Loading conversation details...");
+      const conversationIds = conversationsList.map(conv => conv.id);
+      
+      const { data: membersData, error } = await supabase
+        .from("conversation_members")
+        .select("conversation_id, user_id, role")
+        .in("conversation_id", conversationIds);
+
+      if (error) throw error;
+
+      const allUserIds = [...new Set(membersData?.map(item => item.user_id) || [])];
+      
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, name, email")
+        .in("id", allUserIds);
+
+      if (profilesError) throw profilesError;
+
+      const membersByConversation = {};
+      const otherMembersByConversation = {};
+      const adminsByConversation = {};
+      const ownerByConversation = {};
+      
+      membersData?.forEach(item => {
+        const convId = item.conversation_id;
+        const userId = item.user_id;
+        const role = item.role;
+        const profile = profiles?.find(p => p.id === userId);
+        const userName = profile?.name || "Unknown User";
+        
+        // Store members
+        if (!membersByConversation[convId]) {
+          membersByConversation[convId] = [];
+        }
+        membersByConversation[convId].push({
+          user_id: userId,
+          name: userName,
+          email: profile?.email || "",
+          avatar: userName?.charAt(0).toUpperCase() || "U",
+          role: role
+        });
+
+        // Store admins
+        if (role === 'admin' || role === 'owner') {
+          if (!adminsByConversation[convId]) {
+            adminsByConversation[convId] = [];
+          }
+          adminsByConversation[convId].push(userId);
+        }
+
+        // Store owner
+        if (role === 'owner') {
+          ownerByConversation[convId] = {
+            user_id: userId,
+            name: userName,
+            email: profile?.email || "",
+            avatar: userName?.charAt(0).toUpperCase() || "U"
+          };
+        }
+
+        const conversation = conversationsList.find(c => c.id === convId);
+        if (conversation && !conversation.is_group) {
+          if (userId !== currentUser?.id) {
+            otherMembersByConversation[convId] = {
+              user_id: userId,
+              name: userName,
+              email: profile?.email || "",
+              avatar: userName?.charAt(0).toUpperCase() || "U",
+              role: role
+            };
+          }
+        }
+      });
+
+      setConversationMembers(membersByConversation);
+      setConversationOtherMembers(otherMembersByConversation);
+      setConversationAdmins(adminsByConversation);
+      setConversationOwner(ownerByConversation);
+      
+    } catch (error) {
+      console.error("Error loading conversation members:", error);
+    }
+  };
+
+  // Check if user is owner of a conversation
+  const isConversationOwner = (conversationId) => {
+    return conversationOwner[conversationId]?.user_id === currentUser?.id;
+  };
+
+  // Check if user is admin of a conversation
+  const isConversationAdmin = (conversationId) => {
+    const admins = conversationAdmins[conversationId] || [];
+    return admins.includes(currentUser?.id) || isConversationOwner(conversationId);
+  };
+
+  // ✅ PRESENCE: Setup once on mount
+  useEffect(() => {
+    if (!currentUser?.id || !workspaceId) return;
+
+    console.log("🟢 Setting up presence channel");
+    let presenceChannel = null;
+
+    const setupPresence = async () => {
+      try {
+        if (presenceChannelRef.current) {
+          await supabase.removeChannel(presenceChannelRef.current);
+        }
+
+        presenceChannel = supabase.channel(`workspace:${workspaceId}:presence`, {
+          config: {
+            presence: {
+              key: currentUser.id,
+            },
+          },
+        });
+
+        presenceChannel
+          .on('presence', { event: 'sync' }, () => {
+            const state = presenceChannel.presenceState();
+            const online = new Set();
+            
+            Object.keys(state).forEach(key => {
+              const presences = state[key];
+              if (presences && presences.length > 0) {
+                online.add(key);
+              }
+            });
+            
+            setOnlineUsers(online);
+            console.log("🟢 Online users synced:", online.size);
+          })
+          .on('presence', { event: 'join' }, ({ key }) => {
+            console.log("👋 User joined:", key);
+            setOnlineUsers(prev => new Set([...prev, key]));
+          })
+          .on('presence', { event: 'leave' }, ({ key }) => {
+            console.log("👋 User left:", key);
+            setOnlineUsers(prev => {
+              const updated = new Set(prev);
+              updated.delete(key);
+              return updated;
+            });
+          });
+
+        await presenceChannel.subscribe(async (status) => {
+          console.log("📡 Presence status:", status);
+          if (status === 'SUBSCRIBED') {
+            await presenceChannel.track({
+              user_id: currentUser.id,
+              name: currentUser.name,
+              email: currentUser.email,
+              online_at: new Date().toISOString(),
+            });
+            
+            setConnectionStatus('connected');
+          } else if (status === 'CLOSED') {
+            setConnectionStatus('disconnected');
+          }
+        });
+
+        presenceChannelRef.current = presenceChannel;
+
+      } catch (error) {
+        console.error('❌ Error setting up presence:', error);
+        setConnectionStatus('error');
+      }
+    };
+
+    setupPresence();
+
+    return () => {
+      if (presenceChannel) {
+        supabase.removeChannel(presenceChannel);
+      }
+    };
+  }, [currentUser?.id, workspaceId]);
+
+  // ✅ MESSAGE CHANNEL: Setup when conversation changes
+  useEffect(() => {
+    if (!activeConversation?.id) {
+      setMessages([]);
+      
+      if (messageChannelRef.current) {
+        console.log("🔌 Removing previous message channel");
+        supabase.removeChannel(messageChannelRef.current);
+        messageChannelRef.current = null;
+      }
+      
+      return;
+    }
+
+    console.log('🔄 Setting up realtime for conversation:', activeConversation.id);
+    
+    const initializeChat = async () => {
+      // Cleanup existing channel
+      if (messageChannelRef.current) {
+        await supabase.removeChannel(messageChannelRef.current);
+        messageChannelRef.current = null;
+      }
+      
+      // Load messages first with loading state
+      setIsLoading(true);
+      setLoadingMessage("Loading messages...");
+      await loadMessages(activeConversation.id);
+      setIsLoading(false);
+      
+      // Setup realtime subscription
+      setupRealtimeSubscription(activeConversation.id);
+      
+      // Focus input
+      setTimeout(() => {
+        messageInputRef.current?.focus();
+      }, 100);
+    };
+
+    initializeChat();
+
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      setTypingUsers({});
+    };
+  }, [activeConversation?.id]);
+
+  // Focus inputs when modals open
+  useEffect(() => {
+    if (showGroupCreator && groupNameInputRef.current) {
+      setTimeout(() => groupNameInputRef.current?.focus(), 100);
+    }
+  }, [showGroupCreator]);
+
+  useEffect(() => {
+    if (showMemberSearch && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [showMemberSearch]);
+
+  useEffect(() => {
+    if (isEditingGroup && editGroupInputRef.current) {
+      setTimeout(() => editGroupInputRef.current?.focus(), 100);
+    }
+  }, [isEditingGroup]);
+
+  useEffect(() => {
+    if (showAddMembers && addMembersInputRef.current) {
+      setTimeout(() => addMembersInputRef.current?.focus(), 100);
+    }
+  }, [showAddMembers]);
+
+  // ✅ LOAD MESSAGES: Get messages with sender info
+  const loadMessages = async (conversationId) => {
+    try {
+      console.log("📥 Loading messages for conversation:", conversationId);
+      
+      const { data: messagesData, error: messagesError } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+
+      if (messagesError) throw messagesError;
+      
+      if (!messagesData || messagesData.length === 0) {
+        setMessages([]);
+        console.log("📭 No messages found");
+        return;
+      }
+      
+      // Get sender profiles
+      const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
+      
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, name, email")
+        .in("id", senderIds);
+      
+      if (profilesError) throw profilesError;
+      
+      // Combine messages with sender info
+      const messagesWithSenders = messagesData.map(msg => ({
+        ...msg,
+        sender: profiles?.find(p => p.id === msg.sender_id) || {
+          id: msg.sender_id,
+          name: "Unknown User",
+          email: ""
+        }
+      }));
+      
+      setMessages(messagesWithSenders);
+      console.log(`✅ Loaded ${messagesWithSenders.length} messages`);
+      
+      // Mark as read
+      await markMessagesAsRead(conversationId);
+      
+    } catch (error) {
+      console.error("❌ Error loading messages:", error);
+      setMessages([]);
+    }
+  };
+
+  // ✅ REALTIME SUBSCRIPTION: Listen for new messages
+  const setupRealtimeSubscription = (conversationId) => {
+    console.log('🔥 Setting up realtime subscription for:', conversationId);
+
+    // Unsubscribe from previous channel if exists
+    if (messageChannelRef.current) {
+      console.log('🗑️ Removing previous channel');
+      supabase.removeChannel(messageChannelRef.current);
+      messageChannelRef.current = null;
+    }
+
+    const channel = supabase.channel(`conversation:${conversationId}`, {
+      config: {
+        broadcast: {
+          self: false,
+          ack: true,
+        },
+      },
+    });
+
+    // Listen for INSERT events on messages table
+    channel
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        async (payload) => {
+          console.log('✅ NEW MESSAGE RECEIVED:', payload.new);
+
+          try {
+            // Fetch sender info
+            const { data: sender, error } = await supabase
+              .from('profiles')
+              .select('id, name, email')
+              .eq('id', payload.new.sender_id)
+              .single();
+
+            if (error) {
+              console.error('❌ Error fetching sender:', error);
+            }
+
+            const newMessage = {
+              ...payload.new,
+              sender: sender || {
+                id: payload.new.sender_id,
+                name: "Unknown User",
+                email: ""
+              }
+            };
+
+            // Add message to state
+            setMessages(prev => {
+              const exists = prev.some(m => m.id === newMessage.id);
+              if (exists) {
+                console.log("⚠️ Message already exists, skipping");
+                return prev;
+              }
+
+              console.log("➕ Adding new message to state");
+              return [...prev, newMessage];
+            });
+
+            // Update conversation list
+            await loadConversations();
+            
+          } catch (error) {
+            console.error('❌ Error processing new message:', error);
+          }
+        }
+      )
+      // ✅ NEW: Listen for DELETE events
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          console.log('🗑️ MESSAGE DELETED:', payload.old);
+          
+          // Remove message from state
+          setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
+          
+          // Update conversation list
+          loadConversations();
+        }
+      )
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (payload.user_id !== currentUser?.id && payload.conversation_id === conversationId) {
+          console.log('✍️ User typing:', payload.user_name);
+          setTypingUsers(prev => ({
+            ...prev,
+            [payload.user_id]: {
+              name: payload.user_name,
+              timestamp: Date.now(),
+              conversation_id: payload.conversation_id
+            }
+          }));
+
+          // Clear previous timeout for this user
+          if (typingTimeoutsRef.current[payload.user_id]) {
+            clearTimeout(typingTimeoutsRef.current[payload.user_id]);
+          }
+
+          // Set new timeout to clear typing indicator
+          typingTimeoutsRef.current[payload.user_id] = setTimeout(() => {
+            setTypingUsers(prev => {
+              const updated = { ...prev };
+              delete updated[payload.user_id];
+              return updated;
+            });
+            delete typingTimeoutsRef.current[payload.user_id];
+          }, 3000);
+        }
+      })
+      .on('broadcast', { event: 'typing_stop' }, ({ payload }) => {
+        if (payload.conversation_id === conversationId) {
+          setTypingUsers(prev => {
+            const updated = { ...prev };
+            delete updated[payload.user_id];
+            return updated;
+          });
+          
+          // Clear the timeout
+          if (typingTimeoutsRef.current[payload.user_id]) {
+            clearTimeout(typingTimeoutsRef.current[payload.user_id]);
+            delete typingTimeoutsRef.current[payload.user_id];
+          }
+        }
+      })
+      .subscribe((status, err) => {
+        console.log('📡 Realtime channel status:', status);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to conversation messages');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Channel error:', err);
+        } else if (status === 'TIMED_OUT') {
+          console.error('⏱️ Channel timed out');
+        } else if (status === 'CLOSED') {
+          console.log('🔒 Channel closed');
+        }
+      });
+
+    messageChannelRef.current = channel;
+    return channel;
+  };
+
+  // Mark messages as read
+  const markMessagesAsRead = async (conversationId) => {
+    if (!currentUser?.id || !conversationId) return;
+
+    try {
+      const unreadMessages = messages.filter(msg => 
+        msg.sender_id !== currentUser.id &&
+        (!msg.read_by || !msg.read_by.includes(currentUser.id))
+      );
+
+      if (unreadMessages.length === 0) return;
+
+      const messageIds = unreadMessages.map(msg => msg.id);
+      
+      const { data: updatedMessages } = await supabase
+        .from("messages")
+        .select("id, read_by")
+        .in("id", messageIds);
+
+      const updates = updatedMessages?.map(msg => {
+        const updatedReadBy = [...(msg.read_by || []), currentUser.id];
+        return supabase
+          .from("messages")
+          .update({ read_by: updatedReadBy })
+          .eq("id", msg.id);
+      }) || [];
+
+      await Promise.all(updates);
+
+      setMessages(prev => 
+        prev.map(msg => 
+          messageIds.includes(msg.id) 
+            ? { ...msg, read_by: [...(msg.read_by || []), currentUser.id] }
+            : msg
+        )
+      );
+
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  };
+
+  // ✅ NEW: Delete message function
+  const deleteMessage = async (message) => {
+    if (!message || message.sender_id !== currentUser?.id) {
+      setError("You can only delete your own messages");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setIsDeletingMessage(true);
+    
+    try {
+      const { error } = await supabase
+        .from("messages")
+        .delete()
+        .eq("id", message.id);
+
+      if (error) throw error;
+
+      // Remove message from state immediately
+      setMessages(prev => prev.filter(msg => msg.id !== message.id));
+      
+      // Update conversation last message if needed
+      if (messages.length > 1) {
+        const lastRemainingMessage = messages
+          .filter(msg => msg.id !== message.id)
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+        if (lastRemainingMessage) {
+          await supabase
+            .from("conversations")
+            .update({ 
+              last_message_at: lastRemainingMessage.created_at,
+              last_message: lastRemainingMessage.content.substring(0, 50) + (lastRemainingMessage.content.length > 50 ? '...' : '')
+            })
+            .eq("id", activeConversation.id);
+        }
+      }
+
+      await loadConversations();
+      setError("Message deleted successfully");
+      setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error("❌ Error deleting message:", error);
+      setError("Failed to delete message");
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setIsDeletingMessage(false);
+    }
+  };
+
+  // ✅ NEW: Show confirmation dialog
+  const showDeleteMessageConfirmation = (message) => {
+    setConfirmationConfig({
+      title: "Delete Message",
+      message: "Are you sure you want to delete this message? This action cannot be undone.",
+      onConfirm: () => deleteMessage(message),
+      type: "danger",
+      confirmText: "Delete Message",
+      cancelText: "Cancel"
+    });
+    setShowConfirmation(true);
+  };
+
+
+
+  // Handle typing
+  const handleTyping = useCallback(() => {
+    if (!activeConversation || !messageChannelRef.current || !newMessage.trim()) return;
+
+    const now = Date.now();
+    if (now - lastTypingTimeRef.current < 500) return;
+    
+    lastTypingTimeRef.current = now;
+    clearTimeout(typingTimeoutRef.current);
+
+    // Broadcast typing event
+    messageChannelRef.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: {
+        conversation_id: activeConversation.id,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        timestamp: now
+      }
+    });
+
+    // Stop typing after 2 seconds
+    typingTimeoutRef.current = setTimeout(() => {
+      if (messageChannelRef.current) {
+        messageChannelRef.current.send({
+          type: 'broadcast',
+          event: 'typing_stop',
+          payload: {
+            conversation_id: activeConversation.id,
+            user_id: currentUser.id,
+          }
+        });
+      }
+    }, 2000);
+  }, [activeConversation, currentUser, newMessage]);
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setNewMessage(value);
+    
+    if (value.trim()) {
+      handleTyping();
+    }
+  };
+
+  const handleGroupNameChange = (e) => {
+    setGroupName(e.target.value);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleEditGroupNameChange = (e) => {
+    setEditingGroupName(e.target.value);
+  };
+
+  // ✅ SEND MESSAGE: Optimistic update + DB insert
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !activeConversation || messageLoading) return;
+
+    const messageContent = newMessage.trim();
+    const tempId = `temp_${Date.now()}`;
+    
+    // Optimistic update
+    const optimisticMessage = {
+      id: null,
+      temp_id: tempId,
+      conversation_id: activeConversation.id,
+      sender_id: currentUser.id,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+      read_by: [currentUser.id],
+      sender: {
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email
+      }
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setNewMessage("");
+    setMessageLoading(true);
+    
+    // Clear typing indicator
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    if (messageChannelRef.current) {
+      messageChannelRef.current.send({
+        type: 'broadcast',
+        event: 'typing_stop',
+        payload: {
+          conversation_id: activeConversation.id,
+          user_id: currentUser.id,
+        }
+      });
+    }
+
+    try {
+      console.log("📤 Sending message to database...");
+      
+      const { data, error } = await supabase
+        .from("messages")
+        .insert([{
+          conversation_id: activeConversation.id,
+          sender_id: currentUser.id,
+          content: messageContent,
+          read_by: [currentUser.id]
+        }])
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      console.log("✅ Message saved:", data.id);
+
+      // Replace optimistic message with real one
+      setMessages(prev => prev.map(msg => 
+        msg.temp_id === tempId 
+          ? { ...data, sender: optimisticMessage.sender }
+          : msg
+      ));
+
+      // Update conversation
+      await supabase
+        .from("conversations")
+        .update({ 
+          last_message_at: new Date().toISOString(),
+          last_message: messageContent.substring(0, 50) + (messageContent.length > 50 ? '...' : '')
+        })
+        .eq("id", activeConversation.id);
+
+      await loadConversations();
+      
+    } catch (error) {
+      console.error("❌ Error sending message:", error);
+      
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => msg.temp_id !== tempId));
+      setNewMessage(messageContent);
+      setError("Message failed to send");
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setMessageLoading(false);
+      messageInputRef.current?.focus();
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Create one-on-one conversation
+  const createOneOnOneConversation = async (memberId) => {
+    try {
+      const { data: existingConvs, error: checkError } = await supabase
+        .from("conversation_members")
+        .select(`
+          conversation_id,
+          conversations!inner(id, is_group)
+        `)
+        .eq("user_id", currentUser?.id);
+
+      if (checkError) throw checkError;
+
+      const conversationIds = existingConvs?.map(item => item.conversation_id) || [];
+      
+      const { data: sharedConvs, error: sharedError } = await supabase
+        .from("conversation_members")
+        .select("conversation_id")
+        .eq("user_id", memberId)
+        .in("conversation_id", conversationIds);
+
+      if (sharedError) throw sharedError;
+
+      if (sharedConvs && sharedConvs.length > 0) {
+        const { data: convData } = await supabase
+          .from("conversations")
+          .select("*")
+          .eq("id", sharedConvs[0].conversation_id)
+          .single();
+        
+        if (convData) {
+          setActiveConversation(convData);
+          setShowMemberSearch(false);
+          return;
+        }
+      }
+
+      const { data: newConv, error: convError } = await supabase
+        .from("conversations")
+        .insert([
+          {
+            workspace_id: workspaceId,
+            is_group: false,
+            created_by: currentUser?.id,
+            last_message_at: new Date().toISOString()
+          }
+        ])
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      const membersToAdd = [
+        { conversation_id: newConv.id, user_id: currentUser?.id, joined_at: new Date().toISOString(), role: 'member' },
+        { conversation_id: newConv.id, user_id: memberId, joined_at: new Date().toISOString(), role: 'member' }
+      ];
+
+      const { error: membersError } = await supabase
+        .from("conversation_members")
+        .insert(membersToAdd);
+
+      if (membersError) throw membersError;
+
+      await loadConversations();
+      
+      setActiveConversation(newConv);
+      setShowMemberSearch(false);
+      
+      setTimeout(() => {
+        messageInputRef.current?.focus();
+      }, 100);
+      
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      setError("Failed to start conversation");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // Create group conversation - only admins can create
+  const createGroupConversation = async () => {
+    if (!isAdmin) {
+      setError("Only admins can create groups");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (selectedMembers.length < 1) {
+      setError("Please select at least 1 member");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!groupName.trim()) {
+      setError("Please enter a group name");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      const { data: newConv, error: convError } = await supabase
+        .from("conversations")
+        .insert([
+          {
+            workspace_id: workspaceId,
+            name: groupName.trim(),
+            is_group: true,
+            created_by: currentUser?.id,
+            last_message_at: new Date().toISOString()
+          }
+        ])
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      // Add current user as owner
+      const membersToAdd = [
+        { conversation_id: newConv.id, user_id: currentUser?.id, joined_at: new Date().toISOString(), role: 'owner' },
+        // Add selected members as regular members
+        ...selectedMembers.map(member => ({
+          conversation_id: newConv.id,
+          user_id: member.id,
+          joined_at: new Date().toISOString(),
+          role: 'member'
+        }))
+      ];
+
+      const { error: membersError } = await supabase
+        .from("conversation_members")
+        .insert(membersToAdd);
+
+      if (membersError) throw membersError;
+
+      await loadConversations();
+      
+      setActiveConversation(newConv);
+      setSelectedMembers([]);
+      setGroupName("");
+      setShowGroupCreator(false);
+      setShowMemberSearch(false);
+      
+      setTimeout(() => {
+        messageInputRef.current?.focus();
+      }, 100);
+      
+    } catch (error) {
+      console.error("Error creating group chat:", error);
+      setError("Failed to create group chat");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // ✅ NEW: Show create group confirmation
+  const showCreateGroupConfirmation = () => {
+    if (!isAdmin) {
+      setError("Only admins can create groups");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (selectedMembers.length < 1) {
+      setError("Please select at least 1 member");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!groupName.trim()) {
+      setError("Please enter a group name");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setConfirmationConfig({
+      title: "Create Group Chat",
+      message: `Create "${groupName.trim()}" with ${selectedMembers.length} member${selectedMembers.length !== 1 ? 's' : ''}?`,
+      onConfirm: createGroupConversation,
+      type: "success",
+      confirmText: "Create Group",
+      cancelText: "Cancel"
+    });
+    setShowConfirmation(true);
+  };
+
+  // Update group name - only owner can update
+  const updateGroupName = async () => {
+    if (!activeConversation || !activeConversation.is_group) {
+      setError("This is not a group conversation");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!isConversationOwner(activeConversation.id)) {
+      setError("Only group owner can update group name");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!editingGroupName.trim()) {
+      setError("Please enter a group name");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("conversations")
+        .update({ name: editingGroupName.trim() })
+        .eq("id", activeConversation.id);
+
+      if (error) throw error;
+
+      setConversations(prev => prev.map(conv => 
+        conv.id === activeConversation.id 
+          ? { ...conv, name: editingGroupName.trim() }
+          : conv
+      ));
+      
+      setActiveConversation(prev => ({ ...prev, name: editingGroupName.trim() }));
+      
+      setIsEditingGroup(false);
+      setEditingGroupName("");
+      setError("Group name updated");
+      setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error("Error updating group name:", error);
+      setError("Failed to update group name");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // ✅ NEW: Show update group name confirmation
+  const showUpdateGroupNameConfirmation = () => {
+    if (!activeConversation || !activeConversation.is_group) {
+      setError("This is not a group conversation");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!isConversationOwner(activeConversation.id)) {
+      setError("Only group owner can update group name");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!editingGroupName.trim()) {
+      setError("Please enter a group name");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setConfirmationConfig({
+      title: "Update Group Name",
+      message: `Change group name to "${editingGroupName.trim()}"?`,
+      onConfirm: updateGroupName,
+      type: "warning",
+      confirmText: "Update Name",
+      cancelText: "Cancel"
+    });
+    setShowConfirmation(true);
+  };
+
+  // Add members to group - only owner and admins can add
+  const addMembersToGroup = async () => {
+    if (!activeConversation || !activeConversation.is_group) {
+      setError("This is not a group conversation");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!isConversationAdmin(activeConversation.id)) {
+      setError("Only group admins can add members");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (membersToAdd.length === 0) {
+      setError("Please select members to add");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      // Check which members are already in the group
+      const currentMemberIds = conversationMembers[activeConversation.id]?.map(m => m.user_id) || [];
+      const newMembers = membersToAdd.filter(member => !currentMemberIds.includes(member.id));
+
+      if (newMembers.length === 0) {
+        setError("Selected members are already in the group");
+        setTimeout(() => setError(null), 3000);
+        return;
+      }
+
+      const membersToInsert = newMembers.map(member => ({
+        conversation_id: activeConversation.id,
+        user_id: member.id,
+        joined_at: new Date().toISOString(),
+        role: 'member'
+      }));
+
+      const { error } = await supabase
+        .from("conversation_members")
+        .insert(membersToInsert);
+
+      if (error) throw error;
+
+      // Refresh conversation details
+      await loadConversationDetails([activeConversation]);
+      
+      setMembersToAdd([]);
+      setShowAddMembers(false);
+      setError(`${newMembers.length} member(s) added to group`);
+      setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error("Error adding members to group:", error);
+      setError("Failed to add members");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // ✅ NEW: Show add members confirmation
+  const showAddMembersConfirmation = () => {
+    if (!activeConversation || !activeConversation.is_group) {
+      setError("This is not a group conversation");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!isConversationAdmin(activeConversation.id)) {
+      setError("Only group admins can add members");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (membersToAdd.length === 0) {
+      setError("Please select members to add");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setConfirmationConfig({
+      title: "Add Members",
+      message: `Add ${membersToAdd.length} member${membersToAdd.length !== 1 ? 's' : ''} to the group?`,
+      onConfirm: addMembersToGroup,
+      type: "success",
+      confirmText: "Add Members",
+      cancelText: "Cancel"
+    });
+    setShowConfirmation(true);
+  };
+
+  // Remove member from group - only owner and admins can remove
+  const removeMemberFromGroup = async (memberId) => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (!isConversationAdmin(activeConversation.id)) {
+      setError("Only group admins can remove members");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    // Owner cannot be removed
+    if (memberId === conversationOwner[activeConversation.id]?.user_id) {
+      setError("Group owner cannot be removed");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("conversation_members")
+        .delete()
+        .eq("conversation_id", activeConversation.id)
+        .eq("user_id", memberId);
+
+      if (error) throw error;
+
+      // Refresh conversation details
+      await loadConversationDetails([activeConversation]);
+      
+      setError("Member removed from group");
+      setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error("Error removing member from group:", error);
+      setError("Failed to remove member");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // ✅ NEW: Show remove member confirmation
+  const showRemoveMemberConfirmation = (memberId, memberName) => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (!isConversationAdmin(activeConversation.id)) {
+      setError("Only group admins can remove members");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (memberId === conversationOwner[activeConversation.id]?.user_id) {
+      setError("Group owner cannot be removed");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setConfirmationConfig({
+      title: "Remove Member",
+      message: `Remove ${memberName} from the group? They will no longer have access to group messages.`,
+      onConfirm: () => removeMemberFromGroup(memberId),
+      type: "danger",
+      confirmText: "Remove Member",
+      cancelText: "Cancel"
+    });
+    setShowConfirmation(true);
+  };
+
+  // Make member admin - only owner can do this
+  const makeMemberAdmin = async (memberId) => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (!isConversationOwner(activeConversation.id)) {
+      setError("Only group owner can make admins");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("conversation_members")
+        .update({ role: 'admin' })
+        .eq("conversation_id", activeConversation.id)
+        .eq("user_id", memberId);
+
+      if (error) throw error;
+
+      // Refresh conversation details
+      await loadConversationDetails([activeConversation]);
+      
+      setError("Member promoted to admin");
+      setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error("Error making member admin:", error);
+      setError("Failed to promote member");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // ✅ NEW: Show make admin confirmation
+  const showMakeAdminConfirmation = (memberId, memberName) => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (!isConversationOwner(activeConversation.id)) {
+      setError("Only group owner can make admins");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setConfirmationConfig({
+      title: "Make Admin",
+      message: `Make ${memberName} a group admin? They will be able to add/remove members.`,
+      onConfirm: () => makeMemberAdmin(memberId),
+      type: "warning",
+      confirmText: "Make Admin",
+      cancelText: "Cancel"
+    });
+    setShowConfirmation(true);
+  };
+
+  // Transfer ownership - only owner can transfer
+  const transferOwnership = async (memberId) => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (!isConversationOwner(activeConversation.id)) {
+      setError("Only current owner can transfer ownership");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      // First, make current user admin
+      await supabase
+        .from("conversation_members")
+        .update({ role: 'admin' })
+        .eq("conversation_id", activeConversation.id)
+        .eq("user_id", currentUser?.id);
+
+      // Then make new member owner
+      const { error } = await supabase
+        .from("conversation_members")
+        .update({ role: 'owner' })
+        .eq("conversation_id", activeConversation.id)
+        .eq("user_id", memberId);
+
+      if (error) throw error;
+
+      // Update conversation created_by
+      await supabase
+        .from("conversations")
+        .update({ created_by: memberId })
+        .eq("id", activeConversation.id);
+
+      // Refresh conversation details
+      await loadConversationDetails([activeConversation]);
+      
+      setError("Ownership transferred successfully");
+      setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error("Error transferring ownership:", error);
+      setError("Failed to transfer ownership");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // ✅ NEW: Show transfer ownership confirmation
+  const showTransferOwnershipConfirmation = (memberId, memberName) => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (!isConversationOwner(activeConversation.id)) {
+      setError("Only current owner can transfer ownership");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setConfirmationConfig({
+      title: "Transfer Ownership",
+      message: `Transfer group ownership to ${memberName}? You will become an admin instead.`,
+      onConfirm: () => transferOwnership(memberId),
+      type: "danger",
+      confirmText: "Transfer Ownership",
+      cancelText: "Cancel"
+    });
+    setShowConfirmation(true);
+  };
+
+  // Delete group - only owner can delete
+  const deleteGroup = async () => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (!isConversationOwner(activeConversation.id)) {
+      setError("Only group owner can delete group");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      // First delete all messages
+      await supabase
+        .from("messages")
+        .delete()
+        .eq("conversation_id", activeConversation.id);
+
+      // Then delete all conversation members
+      await supabase
+        .from("conversation_members")
+        .delete()
+        .eq("conversation_id", activeConversation.id);
+
+      // Finally delete the conversation
+      const { error } = await supabase
+        .from("conversations")
+        .delete()
+        .eq("id", activeConversation.id);
+
+      if (error) throw error;
+
+      // Refresh conversations
+      await loadConversations();
+      
+      setActiveConversation(null);
+      setShowGroupSettings(false);
+      setError("Group deleted successfully");
+      setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      setError("Failed to delete group");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // ✅ NEW: Show delete group confirmation
+  const showDeleteGroupConfirmation = () => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (!isConversationOwner(activeConversation.id)) {
+      setError("Only group owner can delete group");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setConfirmationConfig({
+      title: "Delete Group",
+      message: "Are you sure you want to delete this group? All messages and members will be permanently removed. This action cannot be undone.",
+      onConfirm: deleteGroup,
+      type: "danger",
+      confirmText: "Delete Group",
+      cancelText: "Cancel"
+    });
+    setShowConfirmation(true);
+  };
+
+  // Leave group - members can leave, owner cannot
+  const leaveGroup = async () => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (isConversationOwner(activeConversation.id)) {
+      setError("Group owner cannot leave. Transfer ownership first or delete the group.");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("conversation_members")
+        .delete()
+        .eq("conversation_id", activeConversation.id)
+        .eq("user_id", currentUser?.id);
+
+      if (error) throw error;
+
+      // Refresh conversations
+      await loadConversations();
+      
+      setActiveConversation(null);
+      setShowGroupSettings(false);
+      setError("You have left the group");
+      setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error("Error leaving group:", error);
+      setError("Failed to leave group");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // ✅ NEW: Show leave group confirmation
+  const showLeaveGroupConfirmation = () => {
+    if (!activeConversation || !activeConversation.is_group) {
+      return;
+    }
+
+    if (isConversationOwner(activeConversation.id)) {
+      setError("Group owner cannot leave. Transfer ownership first or delete the group.");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setConfirmationConfig({
+      title: "Leave Group",
+      message: "Are you sure you want to leave this group? You will no longer have access to group messages.",
+      onConfirm: leaveGroup,
+      type: "danger",
+      confirmText: "Leave Group",
+      cancelText: "Cancel"
+    });
+    setShowConfirmation(true);
+  };
+
+  const toggleMemberSelection = (member) => {
+    setSelectedMembers(prev => {
+      const isSelected = prev.some(m => m.id === member.id);
+      if (isSelected) {
+        return prev.filter(m => m.id !== member.id);
+      } else {
+        return [...prev, member];
+      }
+    });
+  };
+
+  const toggleMemberToAdd = (member) => {
+    setMembersToAdd(prev => {
+      const isSelected = prev.some(m => m.id === member.id);
+      if (isSelected) {
+        return prev.filter(m => m.id !== member.id);
+      } else {
+        return [...prev, member];
+      }
+    });
+  };
+
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: "smooth",
+        block: "end"
+      });
+    }
+  };
+
+  // Auto-scroll when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, typingUsers]);
+
+  const isUserOnline = (userId) => {
+    return onlineUsers.has(userId?.toString());
+  };
+
+  const getOtherMemberName = useCallback((conversation) => {
+    if (!conversation) return "Select Chat";
+    
+    if (conversation.is_group) {
+      return conversation?.name || "Group Chat";
+    }
+    
+    const otherMember = conversationOtherMembers[conversation.id];
+    if (otherMember) {
+      return otherMember.name;
+    }
+    
+    const members = conversationMembers[conversation.id];
+    if (members && members.length > 0) {
+      const otherMember = members.find(m => m.user_id !== currentUser?.id);
+      if (otherMember) {
+        return otherMember.name;
+      }
+    }
+    
+    return conversation?.name || "Team Member";
+  }, [conversationOtherMembers, conversationMembers, currentUser?.id]);
+
+  const getConversationMembers = useCallback((conversationId) => {
+    return conversationMembers[conversationId] || [];
+  }, [conversationMembers]);
+
+  const getTypingUsersText = () => {
+    const typingUserList = Object.values(typingUsers);
+    if (typingUserList.length === 0) return null;
+    
+    if (typingUserList.length === 1) {
+      return `${typingUserList[0].name} is typing`;
+    }
+    
+    if (typingUserList.length === 2) {
+      return `${typingUserList[0].name} and ${typingUserList[1].name} are typing`;
+    }
+    
+    return `${typingUserList[0].name} and ${typingUserList.length - 1} others are typing`;
+  };
+
+  const getFilteredMembers = useMemo(() => {
+    if (!allMembers || allMembers.length === 0) return [];
+    
+    return allMembers.filter(member =>
+      member.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    ).filter(member => member.user_id !== currentUser?.id);
+  }, [allMembers, searchQuery, currentUser?.id]);
+
+  const getAvailableMembersToAdd = useMemo(() => {
+    if (!allMembers || allMembers.length === 0) return [];
+    
+    const currentMemberIds = conversationMembers[activeConversation?.id]?.map(m => m.user_id) || [];
+    
+    return allMembers.filter(member =>
+      (member.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       member.email?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      !currentMemberIds.includes(member.user_id) &&
+      member.user_id !== currentUser?.id
+    );
+  }, [allMembers, searchQuery, activeConversation?.id, conversationMembers, currentUser?.id]);
+
+  const handleStartNewChat = () => {
+    setShowMemberSearch(true);
+    setSelectedMembers([]);
+    setShowGroupCreator(false);
+    setSearchQuery("");
+  };
+
+  const handleStartNewGroupChat = () => {
+    if (!isAdmin) {
+      setError("Only admins can create groups");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    setShowMemberSearch(true);
+    setSelectedMembers([]);
+    setShowGroupCreator(true);
+    setSearchQuery("");
+    setGroupName("");
+  };
+
+  const handleOpenGroupSettings = () => {
+    setShowGroupSettings(true);
+    setEditingGroupName(activeConversation?.name || "");
+    setIsEditingGroup(false);
+    setShowAddMembers(false);
+    setMembersToAdd([]);
+    setSearchQuery("");
+  };
+
+  const handleOpenAddMembers = () => {
+    setShowAddMembers(true);
+    setMembersToAdd([]);
+    setSearchQuery("");
+  };
+
+  // ✅ Add CSS animations
+  const styles = `
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes scale-in {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    @keyframes slide-up {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes slide-in {
+      from { transform: translateX(-20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .animate-fade-in { animation: fade-in 0.3s ease-out; }
+    .animate-scale-in { animation: scale-in 0.3s ease-out; }
+    .animate-slide-up { animation: slide-up 0.3s ease-out; }
+    .animate-slide-in { animation: slide-in 0.3s ease-out; }
+  `;
+
+  // ✅ NO LOADING SPINNER - component is always ready
+  return (
+    <>
+      <style>{styles}</style>
+      
+      {/* Loading Overlay */}
+      {isLoading && <LoadingOverlay message={loadingMessage} />}
+      
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        onConfirm={() => {
+          confirmationConfig.onConfirm();
+          setShowConfirmation(false);
+        }}
+        title={confirmationConfig.title}
+        message={confirmationConfig.message}
+        confirmText={confirmationConfig.confirmText}
+        cancelText={confirmationConfig.cancelText}
+        type={confirmationConfig.type}
+      />
+
+      <div className="h-full flex flex-col md:flex-row rounded-2xl overflow-hidden bg-white shadow-xl animate-fade-in">
+        {/* Member Search Modal */}
+        <div 
+          className={`fixed inset-0 md:absolute md:inset-auto md:top-20 md:right-6 bg-black bg-opacity-50 md:bg-transparent z-40 flex items-center justify-center p-4 ${
+            showMemberSearch ? 'block' : 'hidden'
+          }`}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowMemberSearch(false);
+              setShowGroupCreator(false);
+              setSelectedMembers([]);
+              setGroupName("");
+            }
+          }}
+        >
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] md:max-h-[80vh] overflow-hidden border border-gray-200 animate-scale-in">
+            <div className="sticky top-0 bg-white p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {showGroupCreator ? "New Group Chat" : "New Message"}
+                  </h3>
+                  <p className="text-gray-500 mt-1">
+                    {showGroupCreator ? "Create a group with team members" : "Select a member to chat with"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowMemberSearch(false);
+                    setShowGroupCreator(false);
+                    setSelectedMembers([]);
+                    setGroupName("");
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <FiX className="w-6 h-6 text-gray-500" />
+                </button>
+              </div>
+              
+              {showGroupCreator && !isAdmin && (
+                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <FiAlertCircle className="w-5 h-5 text-yellow-600" />
+                    <p className="text-yellow-700 font-medium">
+                      Only workspace admins can create groups
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => {
+                    setShowGroupCreator(false);
+                    setSelectedMembers([]);
+                  }}
+                  className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+                    !showGroupCreator 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Direct Message
+                </button>
+                <button
+                  onClick={() => {
+                    if (isAdmin) {
+                      setShowGroupCreator(true);
+                    } else {
+                      setError("Only admins can create groups");
+                      setTimeout(() => setError(null), 3000);
+                    }
+                  }}
+                  disabled={!isAdmin}
+                  className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+                    showGroupCreator 
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Group Chat
+                </button>
+              </div>
+              
+              <div className="relative">
+                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Search team members..."
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+              {getFilteredMembers.length > 0 ? (
+                <>
+                  <div className="mb-4">
+                    <h4 className="font-semibold text-gray-700 mb-3 px-2">
+                      Team Members ({getFilteredMembers.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {getFilteredMembers.map(member => {
+                        const isOnline = isUserOnline(member.user_id);
+                        return (
+                          <div
+                            key={member.user_id}
+                            className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl cursor-pointer transition-all group animate-slide-up"
+                            onClick={() => {
+                              if (!showGroupCreator) {
+                                createOneOnOneConversation(member.user_id);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className="relative">
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                                  {member.avatar}
+                                </div>
+                                <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                                  isOnline ? 'bg-green-500' : 'bg-gray-400'
+                                }`}></span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-bold text-gray-900 text-lg truncate">
+                                    {member.name}
+                                  </p>
+                                  {isOnline && (
+                                    <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                                      Online
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-gray-600 truncate">{member.email}</p>
+                                <span className={`text-xs px-3 py-1 rounded-full mt-1 inline-block ${
+                                  member.role === 'owner' 
+                                    ? 'bg-purple-100 text-purple-700'
+                                    : member.role === 'admin'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {member.role}
+                                </span>
+                              </div>
+                            </div>
+
+                            {showGroupCreator && isAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleMemberSelection({
+                                    id: member.user_id,
+                                    username: member.name,
+                                    email: member.email
+                                  });
+                                }}
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all shadow-sm ${
+                                  selectedMembers.some(m => m.id === member.user_id)
+                                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                }`}
+                              >
+                                {selectedMembers.some(m => m.id === member.user_id) ? (
+                                  <FiCheck className="w-6 h-6" />
+                                ) : (
+                                  <FiPlus className="w-6 h-6" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {showGroupCreator && isAdmin && selectedMembers.length > 0 && (
+                    <div className="bg-gradient-to-r h-[700px] from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100 mt-6 animate-slide-up">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h4 className="font-bold text-gray-900 text-xl">
+                            Create Group
+                          </h4>
+                          <p className="text-gray-600 mt-1">
+                            {selectedMembers.length} member{selectedMembers.length !== 1 ? 's' : ''} selected
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setSelectedMembers([])}
+                          className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 mb-6">
+                        {selectedMembers.map(member => (
+                          <div
+                            key={member.id}
+                            className="px-4 py-3 bg-white border border-gray-200 rounded-xl flex items-center gap-3 shadow-sm animate-slide-in"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                              <span className="text-white font-medium">
+                                {member.username?.charAt(0).toUpperCase() || "U"}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{member.username}</p>
+                              <p className="text-sm text-gray-500 truncate max-w-[150px]">{member.email}</p>
+                            </div>
+                            <button
+                              onClick={() => toggleMemberSelection(member)}
+                              className="ml-2 p-1 hover:bg-gray-100 rounded-lg"
+                            >
+                              <FiX className="w-5 h-5 text-gray-500" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-6">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">
+                            Group Name
+                          </label>
+                          <input
+                            ref={groupNameInputRef}
+                            type="text"
+                            value={groupName}
+                            onChange={handleGroupNameChange}
+                            placeholder="Enter group name..."
+                            className="w-full px-5 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base bg-white"
+                          />
+                        </div>
+                        
+                        <div className="flex gap-4">
+                          <button
+                            onClick={showCreateGroupConfirmation}
+                            disabled={!groupName.trim()}
+                            className={`flex-1 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all duration-200 shadow-lg ${
+                              groupName.trim() 
+                                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' 
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                          >
+                            Create Group
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowGroupCreator(false);
+                              setSelectedMembers([]);
+                              setGroupName("");
+                            }}
+                            className="px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-100 flex items-center justify-center">
+                    <FiUsers className="w-12 h-12 text-gray-400" />
+                  </div>
+                  <h4 className="text-xl font-semibold text-gray-900 mb-2">No members found</h4>
+                  <p className="text-gray-600">Try a different search term</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Group Settings Modal */}
+        <div 
+          className={`fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4 ${
+            showGroupSettings ? 'block' : 'hidden'
+          }`}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowGroupSettings(false);
+              setIsEditingGroup(false);
+              setEditingGroupName("");
+              setShowAddMembers(false);
+              setMembersToAdd([]);
+            }
+          }}
+        >
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 animate-scale-in">
+            <div className="sticky top-0 bg-white p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Group Settings</h3>
+                  <p className="text-gray-500 mt-1">Manage your group chat</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowGroupSettings(false);
+                    setIsEditingGroup(false);
+                    setEditingGroupName("");
+                    setShowAddMembers(false);
+                    setMembersToAdd([]);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <FiX className="w-6 h-6 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+              {showAddMembers ? (
+                <div className="space-y-6 animate-slide-up">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-xl">Add Members</h4>
+                      <p className="text-gray-600 mt-1">
+                        Add new members to {activeConversation?.name}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowAddMembers(false)}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors font-medium"
+                    >
+                      Back
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      ref={addMembersInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                      placeholder="Search team members to add..."
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base"
+                    />
+                  </div>
+
+                  {getAvailableMembersToAdd.length > 0 ? (
+                    <>
+                      <div className="space-y-3">
+                        {getAvailableMembersToAdd.map(member => {
+                          const isOnline = isUserOnline(member.user_id);
+                          const isSelected = membersToAdd.some(m => m.id === member.user_id);
+                          
+                          return (
+                            <div
+                              key={member.user_id}
+                              className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl cursor-pointer transition-all border border-gray-200 animate-slide-in"
+                              onClick={() => toggleMemberToAdd({
+                                id: member.user_id,
+                                username: member.name,
+                                email: member.email
+                              })}
+                            >
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className="relative">
+                                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md">
+                                    {member.avatar}
+                                  </div>
+                                  <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
+                                    isOnline ? 'bg-green-500' : 'bg-gray-400'
+                                  }`}></span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-bold text-gray-900 truncate">
+                                      {member.name}
+                                    </p>
+                                    {isOnline && (
+                                      <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                                        Online
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-gray-600 text-sm truncate">{member.email}</p>
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleMemberToAdd({
+                                    id: member.user_id,
+                                    username: member.name,
+                                    email: member.email
+                                  });
+                                }}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                                  isSelected
+                                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                }`}
+                              >
+                                {isSelected ? (
+                                  <FiCheck className="w-5 h-5" />
+                                ) : (
+                                  <FiPlus className="w-5 h-5" />
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {membersToAdd.length > 0 && (
+                        <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-100 animate-slide-up">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h5 className="font-bold text-gray-900">
+                                {membersToAdd.length} member{membersToAdd.length !== 1 ? 's' : ''} selected
+                              </h5>
+                              <p className="text-gray-600 text-sm mt-1">
+                                Click "Add Members" to add them to the group
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setMembersToAdd([])}
+                              className="px-3 py-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium"
+                            >
+                              Clear All
+                            </button>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 mb-6">
+                            {membersToAdd.map(member => (
+                              <div
+                                key={member.id}
+                                className="px-3 py-2 bg-white border border-gray-200 rounded-lg flex items-center gap-2 shadow-sm"
+                              >
+                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold">
+                                    {member.username?.charAt(0).toUpperCase() || "U"}
+                                  </span>
+                                </div>
+                                <span className="text-sm font-medium text-gray-900">{member.username}</span>
+                                <button
+                                  onClick={() => toggleMemberToAdd(member)}
+                                  className="ml-1 p-0.5 hover:bg-gray-100 rounded"
+                                >
+                                  <FiX className="w-3 h-3 text-gray-500" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex gap-3">
+                            <button
+                              onClick={showAddMembersConfirmation}
+                              className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                            >
+                              Add Members
+                            </button>
+                            <button
+                              onClick={() => setShowAddMembers(false)}
+                              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                        <FiUsers className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h5 className="text-lg font-semibold text-gray-900 mb-2">No members found</h5>
+                      <p className="text-gray-600">All workspace members are already in this group</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="mb-8 animate-slide-up">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-bold text-gray-900 text-lg">Group Name</h4>
+                      {!isEditingGroup && isConversationOwner(activeConversation?.id) && (
+                        <button
+                          onClick={() => {
+                            setIsEditingGroup(true);
+                            setEditingGroupName(activeConversation?.name || "");
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors"
+                        >
+                          <FiEdit2 className="w-4 h-4" />
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                    
+                    {isEditingGroup ? (
+                      <div className="space-y-4 animate-slide-up">
+                        <input
+                          ref={editGroupInputRef}
+                          type="text"
+                          value={editingGroupName}
+                          onChange={handleEditGroupNameChange}
+                          placeholder="Enter new group name..."
+                          className="w-full px-5 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base"
+                        />
+                        <div className="flex gap-3">
+                          <button
+                            onClick={showUpdateGroupNameConfirmation}
+                            disabled={!editingGroupName.trim()}
+                            className={`flex-1 py-3 rounded-xl font-bold ${
+                              editingGroupName.trim() 
+                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg' 
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                          >
+                            Save Changes
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsEditingGroup(false);
+                              setEditingGroupName("");
+                            }}
+                            className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-700 text-lg font-medium px-4 py-3 bg-gray-50 rounded-xl">
+                        {activeConversation?.name}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mb-8 animate-slide-up">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-bold text-gray-900 text-lg">
+                        Group Members ({getConversationMembers(activeConversation?.id).length})
+                      </h4>
+                      {isConversationAdmin(activeConversation?.id) && (
+                        <button
+                          onClick={handleOpenAddMembers}
+                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                        >
+                          <FiUserPlus className="w-4 h-4" />
+                          Add Members
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {getConversationMembers(activeConversation?.id).map((member, index) => {
+                        const isCurrentUser = member.user_id === currentUser?.id;
+                        const isOnline = isUserOnline(member.user_id);
+                        const isOwner = conversationOwner[activeConversation?.id]?.user_id === member.user_id;
+                        const isAdmin = member.role === 'admin' || isOwner;
+                        
+                        return (
+                          <div 
+                            key={member.user_id}
+                            className={`px-4 py-3 rounded-xl flex items-center justify-between animate-slide-in ${
+                              isCurrentUser 
+                                ? 'bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200' 
+                                : 'bg-gray-50 border border-gray-200'
+                            }`}
+                            style={{ animationDelay: `${index * 50}ms` }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                  <span className="text-white font-bold">
+                                    {member.avatar}
+                                  </span>
+                                </div>
+                                {isOnline && !isCurrentUser && (
+                                  <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white bg-green-500"></div>
+                                )}
+                                {isOwner && (
+                                  <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-yellow-500 border-2 border-white flex items-center justify-center">
+                                    <FiCheck className="w-3 h-3 text-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-bold ${isCurrentUser ? 'text-blue-700' : 'text-gray-900'}`}>
+                                    {member.name}
+                                    {isCurrentUser && ' (You)'}
+                                  </span>
+                                  {isOwner ? (
+                                    <span className="text-xs font-medium bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                                      Owner
+                                    </span>
+                                  ) : isAdmin ? (
+                                    <span className="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                      Admin
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-medium bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
+                                      Member
+                                    </span>
+                                )}
+                                </div>
+                                <p className="text-sm text-gray-500">{member.email}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {isOnline && !isCurrentUser && (
+                                <span className="text-xs font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                                  Online
+                                </span>
+                              )}
+                              
+                              {/* Action buttons - only show for admins/owner */}
+                              {!isCurrentUser && isConversationAdmin(activeConversation?.id) && (
+                                <div className="flex gap-1">
+                                  {/* Make Admin/Owner buttons - only for owner */}
+                                  {isConversationOwner(activeConversation?.id) && !isOwner && (
+                                    <>
+                                      {!isAdmin && (
+                                        <button
+                                          onClick={() => showMakeAdminConfirmation(member.user_id, member.name)}
+                                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                          title="Make Admin"
+                                        >
+                                          <FiUserCheck className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => showTransferOwnershipConfirmation(member.user_id, member.name)}
+                                        className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                                        title="Transfer Ownership"
+                                      >
+                                        <FiChevronsDown className="w-4 h-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                  
+                                  {/* Remove button - admins can remove members, owner cannot remove owner */}
+                                  {!isOwner && (
+                                    <button
+                                      onClick={() => showRemoveMemberConfirmation(member.user_id, member.name)}
+                                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="Remove from Group"
+                                    >
+                                      <FiUserMinus className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Danger Zone */}
+                  <div className="border-t border-gray-200 pt-6 animate-slide-up">
+                    <h4 className="font-bold text-gray-900 text-lg mb-4">Danger Zone</h4>
+                    
+                    <div className="space-y-3">
+                      {/* Leave Group button - for members, not owner */}
+                      {!isConversationOwner(activeConversation?.id) && (
+                        <button
+                          onClick={showLeaveGroupConfirmation}
+                          className="w-full flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors text-red-700 font-medium"
+                        >
+                          <div className="flex items-center gap-3">
+                            <FiLogOut className="w-5 h-5" />
+                            <span>Leave Group</span>
+                          </div>
+                          <span className="text-sm opacity-75">You will no longer be a member</span>
+                        </button>
+                      )}
+                      
+                      {/* Delete Group button - only for owner */}
+                      {isConversationOwner(activeConversation?.id) && (
+                        <button
+                          onClick={showDeleteGroupConfirmation}
+                          className="w-full flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors text-red-700 font-medium"
+                        >
+                          <div className="flex items-center gap-3">
+                            <FiTrash2 className="w-5 h-5" />
+                            <span>Delete Group</span>
+                          </div>
+                          <span className="text-sm opacity-75">Permanently delete this group</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden md:flex flex-1 h-full">
+          {/* Conversation List */}
+          <div className="w-full md:w-96 lg:w-80 xl:w-96 border-r border-gray-200 bg-white overflow-y-auto h-full">
+            <div className="sticky top-0 bg-white p-6 border-b border-gray-100 z-10">
+              <div className="flex items-center justify-between mb-6">
+                <div className="animate-slide-in">
+                  <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                      connectionStatus === 'connected' 
+                        ? 'bg-green-100 text-green-800' 
+                        : connectionStatus === 'connecting'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {connectionStatus === 'connected' ? 
+                        <FiWifi className="w-4 h-4" /> : 
+                        <FiWifiOff className="w-4 h-4" />
+                      }
+                      {connectionStatus === 'connected' ? 'Live' : connectionStatus === 'connecting' ? 'Connecting' : 'Offline'}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      • {onlineUsers.size} online
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-2 animate-slide-in" style={{ animationDelay: '100ms' }}>
+                  <button
+                    onClick={handleStartNewGroupChat}
+                    className={`p-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-xl transition-all duration-200 shadow-lg hover:scale-105 ${
+                      !isAdmin ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    title={isAdmin ? "New group chat" : "Only admins can create groups"}
+                    disabled={!isAdmin}
+                  >
+                    <FiUsers className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={handleStartNewChat}
+                    className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-xl transition-all duration-200 shadow-lg hover:scale-105"
+                    title="New direct message"
+                  >
+                    <FiUserPlus className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* All Workspace Members List - Left Sidebar */}
+              <div className="mb-6 animate-slide-up">
+                <h3 className="font-bold text-gray-900 text-lg mb-4">All Members ({allMembers.length})</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {allMembers.map((member, index) => {
+                    const isOnline = isUserOnline(member.user_id);
+                    const isCurrentUser = member.user_id === currentUser?.id;
+                    
+                    return (
+                      <div 
+                        key={member.user_id}
+                        className={`flex items-center gap-3 p-3 rounded-xl animate-slide-in ${
+                          isCurrentUser 
+                            ? 'bg-gradient-to-r from-blue-50 to-purple-50' 
+                            : 'hover:bg-gray-50'
+                        }`}
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                            <span className="text-white font-bold">
+                              {member.avatar}
+                            </span>
+                          </div>
+                          <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
+                            isOnline ? 'bg-green-500' : 'bg-gray-400'
+                          }`}></span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900 truncate">
+                              {member.name}
+                              {isCurrentUser && ' (You)'}
+                            </p>
+                            {isOnline && (
+                              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                                Online
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs px-2 py-0.5 rounded-full $
+                                 member.role === 'admin'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {member.role}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Conversations List */}
+            <div className="p-4">
+              <h3 className="font-bold text-gray-900 text-lg mb-4 px-2">Your Conversations</h3>
+              
+              {conversations.length > 0 ? (
+                conversations.map((conv, index) => {
+                  const unreadCount = messages.filter(msg => 
+                    msg.conversation_id === conv.id && 
+                    !msg.read_by?.includes(currentUser?.id) &&
+                    msg.sender_id !== currentUser?.id
+                  ).length;
+
+                  const otherMemberName = getOtherMemberName(conv);
+                  const convMembers = getConversationMembers(conv.id);
+                  const memberCount = convMembers.length;
+
+                  const otherMember = conversationOtherMembers[conv.id];
+                  const isOtherMemberOnline = otherMember ? isUserOnline(otherMember.user_id) : false;
+
+                  return (
+                    <div
+                      key={conv.id}
+                      onClick={() => setActiveConversation(conv)}
+                      className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 mb-3 animate-slide-in ${
+                        activeConversation?.id === conv.id
+                          ? 'bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-500 shadow-lg'
+                          : 'hover:bg-gray-50 border border-transparent hover:border-gray-200'
+                      }`}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center shadow-md ${
+                          conv.is_group
+                            ? 'bg-gradient-to-br from-purple-500 to-pink-600'
+                            : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                        }`}>
+                          {conv.is_group ? (
+                            <FiUsers className="w-7 h-7 text-white" />
+                          ) : (
+                            <span className="text-white font-bold text-xl">
+                              {otherMemberName?.charAt(0).toUpperCase() || "T"}
+                            </span>
+                          )}
+                          {!conv.is_group && (
+                            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                              isOtherMemberOnline ? 'bg-green-500' : 'bg-gray-400'
+                            }`}></div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="font-bold text-gray-900 truncate text-lg">
+                              {otherMemberName}
+                            </p>
+                            {conv.last_message_at && (
+                              <span className="text-xs text-gray-500 whitespace-nowrap">
+                              {new Date(conv.last_message_at + 'Z').toLocaleString('en-PK', {
+  day: '2-digit',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+  timeZone: 'Asia/Karachi'
+})}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-gray-600 truncate text-sm flex-1">
+                              {conv.last_message || "Start a conversation..."}
+                            </p>
+                            {unreadCount > 0 && (
+                              <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center ml-2 flex-shrink-0 shadow-sm">
+                                {unreadCount}
+                              </span>
+                            )}
+                          </div>
+                          {conv.is_group && memberCount > 0 && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <p className="text-xs text-gray-500">
+                                {memberCount} member{memberCount !== 1 ? 's' : ''}
+                              </p>
+                              {conversationOwner[conv.id] && (
+                                <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
+                                  Owner: {conversationOwner[conv.id]?.name}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12 animate-slide-up">
+                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                    <FiMessageSquare className="w-12 h-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">No conversations yet</h3>
+                  <p className="text-gray-600 mb-4">Start chatting with your team</p>
+                  <div className="flex flex-col gap-3 mt-6">
+                    <button
+                      onClick={handleStartNewChat}
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg transition-all animate-slide-up"
+                      style={{ animationDelay: '100ms' }}
+                    >
+                      Start Direct Message
+                    </button>
+                    <button
+                      onClick={handleStartNewGroupChat}
+                      disabled={!isAdmin}
+                      className={`px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:shadow-lg transition-all animate-slide-up ${
+                        !isAdmin ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      style={{ animationDelay: '200ms' }}
+                    >
+                      {isAdmin ? 'Create Group Chat' : 'Only Admins Can Create Groups'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Chat Messages Area */}
+          {activeConversation ? (
+            <div className="flex-1 flex flex-col h-full bg-gradient-to-b from-gray-50 to-white animate-slide-in">
+              <div className="sticky top-0 bg-white p-4 lg:p-6 border-b border-gray-200 shadow-sm z-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 lg:gap-4">
+                    <div className="flex items-center gap-3 lg:gap-4">
+                      <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-2xl flex items-center justify-center shadow-md ${
+                        activeConversation?.is_group
+                          ? 'bg-gradient-to-br from-purple-500 to-pink-600'
+                          : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                      }`}>
+                        {activeConversation?.is_group ? (
+                          <FiUsers className="w-6 h-6 lg:w-7 lg:h-7 text-white" />
+                        ) : (
+                          <span className="text-white font-bold text-xl lg:text-2xl">
+                            {getOtherMemberName(activeConversation)?.charAt(0).toUpperCase() || "T"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h2 className="font-bold text-gray-900 text-lg lg:text-2xl truncate">
+                          {getOtherMemberName(activeConversation)}
+                        </h2>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {activeConversation?.is_group ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-600 text-sm lg:text-base">
+                                Group • {getConversationMembers(activeConversation.id).length} members
+                              </span>
+                              {conversationOwner[activeConversation.id] && (
+                                <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
+                                  Owner: {conversationOwner[activeConversation.id]?.name}
+                                </span>
+                              )}
+                              <button
+                                onClick={handleOpenGroupSettings}
+                                className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-1.5 rounded-lg transition-colors"
+                                title="Group settings"
+                              >
+                                <FiSettings className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-600 text-sm lg:text-base">
+                                Direct message
+                              </span>
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id)
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                {conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id) ? 'Online' : 'Offline'}
+                              </span>
+                            </div>
+                          )}
+                          {getTypingUsersText() && (
+                            <span className="text-blue-600 font-medium text-sm animate-pulse flex items-center gap-1">
+                              <div className="flex gap-1">
+                                <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></span>
+                                <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                                <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                              </div>
+                              {getTypingUsersText()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {activeConversation?.is_group && (
+                    <button
+                      onClick={handleOpenGroupSettings}
+                      className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors"
+                      title="Group settings"
+                    >
+                      <FiSettings className="w-5 h-5 text-gray-600" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+                {messages.length > 0 ? (
+                  <div className="space-y-4 lg:space-y-6">
+                    {messages.map((message, index) => {
+                      const isCurrentUser = message.sender_id === currentUser?.id;
+                      const showAvatar = index === 0 || messages[index - 1]?.sender_id !== message.sender_id;
+                      const senderName = message.sender?.name || "Unknown User";
+                      const isSenderOnline = isUserOnline(message.sender_id);
+                      
+                      return (
+                        <div
+                          key={message.id || message.temp_id}
+                          className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${showAvatar ? 'mt-4 lg:mt-6' : 'mt-2 lg:mt-3'} animate-slide-up`}
+                          style={{ animationDelay: `${index * 30}ms` }}
+                        >
+                          <div className={`max-w-[85%] lg:max-w-2xl ${isCurrentUser ? 'ml-auto' : ''}`}>
+                            {!isCurrentUser && showAvatar && (
+                              <div className="flex items-center gap-2 mb-1 lg:mb-2">
+                                <div className="relative">
+                                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                    <span className="text-white font-bold text-sm lg:text-base">
+                                      {senderName?.charAt(0).toUpperCase() || "U"}
+                                    </span>
+                                  </div>
+                                  {isSenderOnline && (
+                                    <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white bg-green-500"></div>
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="font-bold text-gray-900 text-sm lg:text-base">
+                                    {senderName}
+                                  </span>
+                                  {isSenderOnline && (
+                                    <span className="text-xs text-green-600 ml-2">• Online</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className={`relative group rounded-2xl lg:rounded-3xl px-4 lg:px-6 py-3 lg:py-4 ${
+                              isCurrentUser
+                                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-none'
+                                : 'bg-white border border-gray-200 rounded-bl-none shadow-sm'
+                            } ${message.id ? '' : 'opacity-70'}`}>
+                              <p className="break-words text-sm lg:text-base">{message.content}</p>
+                              <div className={`flex items-center justify-end gap-2 mt-2 ${
+                                isCurrentUser ? 'text-blue-200' : 'text-gray-500'
+                              }`}>
+                                <span className="text-xs lg:text-sm">
+                       {new Date(message.created_at + 'Z').toLocaleString('en-PK', {
+  day: '2-digit',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+  timeZone: 'Asia/Karachi'
+})}
+                                </span>
+                                {isCurrentUser && message.read_by && message.read_by.length > 1 && (
+                                  <FiCheckCircle className="w-4 h-4 lg:w-5 lg:h-5" title="Read" />
+                                )}
+                                
+                                {/* Message Menu Button - Only for user's own messages */}
+                              
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 lg:py-24 animate-slide-up">
+                    <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 lg:mb-10 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                      <FiMessageSquare className="w-12 h-12 lg:w-16 lg:h-16 text-gray-400" />
+                    </div>
+                    <h3 className="text-xl lg:text-3xl font-bold text-gray-900 mb-2 lg:mb-4">No messages yet</h3>
+                    <p className="text-gray-600 text-base lg:text-xl mb-8 lg:mb-12 max-w-md lg:max-w-2xl mx-auto">
+                      Start the conversation by sending your first message
+                    </p>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="fixed bottom-0 left-0 right-0 bg-white p-4 lg:p-6 border-t border-gray-200 shadow-lg animate-slide-up">
+                {getTypingUsersText() && (
+                  <div className="mb-3 lg:mb-4 flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-xl animate-slide-in">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></span>
+                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                      <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                    </div>
+                    <span className="font-medium text-sm lg:text-base">{getTypingUsersText()}</span>
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-2 lg:gap-4">
+                  <input
+                    ref={messageInputRef}
+                    type="text"
+                    value={newMessage}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyPress}
+                    placeholder={`Message ${getOtherMemberName(activeConversation)}...`}
+                    className="flex-1 px-4 lg:px-6 py-3 lg:py-4 border border-gray-300 rounded-xl lg:rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm lg:text-base"
+                    disabled={messageLoading}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!newMessage.trim() || messageLoading}
+                    className="p-3 lg:p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl lg:rounded-2xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {messageLoading ? (
+                      <div className="w-5 h-5 lg:w-6 lg:h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <FiSend className="w-5 h-5 lg:w-6 lg:h-6" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 animate-fade-in">
+              <div className="text-center p-8">
+                <div className="w-32 h-32 mx-auto mb-8 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center shadow-2xl animate-pulse">
+                  <FiMessageSquare className="w-16 h-16 text-blue-500" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3 animate-slide-up">Select a conversation</h3>
+                <p className="text-gray-600 text-lg mb-8 max-w-md animate-slide-up" style={{ animationDelay: '100ms' }}>
+                  Choose a chat from the sidebar or start a new conversation
+                </p>
+                <div className="flex flex-col gap-4">
+                  <button
+                    onClick={handleStartNewChat}
+                    className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-bold text-lg hover:shadow-2xl transition-all flex items-center gap-3 justify-center animate-slide-up"
+                    style={{ animationDelay: '200ms' }}
+                  >
+                    <FiUserPlus className="w-6 h-6" />
+                    Start Direct Message
+                  </button>
+                  <button
+                    onClick={handleStartNewGroupChat}
+                    disabled={!isAdmin}
+                    className={`px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg hover:shadow-2xl transition-all flex items-center gap-3 justify-center animate-slide-up ${
+                      !isAdmin ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    style={{ animationDelay: '300ms' }}
+                  >
+                    <FiUsers className="w-6 h-6" />
+                    {isAdmin ? 'Create Group Chat' : 'Only Admins Can Create Groups'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Layout */}
+        <div className="md:hidden flex-1 h-full">
+          {activeConversation ? (
+            <div className="flex-1 flex flex-col h-full bg-gradient-to-b from-gray-50 to-white animate-slide-in">
+              <div className="sticky top-0 bg-white p-4 border-b border-gray-200 shadow-sm z-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setActiveConversation(null)}
+                      className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                    >
+                      <FiChevronLeft className="w-6 h-6 text-gray-600" />
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-md ${
+                        activeConversation?.is_group
+                          ? 'bg-gradient-to-br from-purple-500 to-pink-600'
+                          : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                      }`}>
+                        {activeConversation?.is_group ? (
+                          <FiUsers className="w-6 h-6 text-white" />
+                        ) : (
+                          <span className="text-white font-bold text-xl">
+                            {getOtherMemberName(activeConversation)?.charAt(0).toUpperCase() || "T"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h2 className="font-bold text-gray-900 text-lg truncate">
+                          {getOtherMemberName(activeConversation)}
+                        </h2>
+                        <div className="flex items-center gap-2 mt-1">
+                          {activeConversation?.is_group ? (
+                            <span className="text-gray-600 text-sm">
+                              {getConversationMembers(activeConversation.id).length} members
+                            </span>
+                          ) : (
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                              conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id)
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id) ? 'Online' : 'Offline'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {activeConversation?.is_group && (
+                    <button
+                      onClick={handleOpenGroupSettings}
+                      className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                    >
+                      <FiSettings className="w-5 h-5 text-gray-600" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4">
+                {messages.length > 0 ? (
+                  <div className="space-y-4">
+                    {messages.map((message, index) => {
+                      const isCurrentUser = message.sender_id === currentUser?.id;
+                      const showAvatar = index === 0 || messages[index - 1]?.sender_id !== message.sender_id;
+                      const senderName = message.sender?.name || "Unknown User";
+                      
+                      return (
+                        <div
+                          key={message.id || message.temp_id}
+                          className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${showAvatar ? 'mt-6' : 'mt-2'} animate-slide-up`}
+                          style={{ animationDelay: `${index * 30}ms` }}
+                        >
+                          <div className={`max-w-[85%] ${isCurrentUser ? 'ml-auto' : ''}`}>
+                            {!isCurrentUser && showAvatar && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                  <span className="text-white font-bold text-sm">
+                                    {senderName?.charAt(0).toUpperCase() || "U"}
+                                  </span>
+                                </div>
+                                <span className="font-bold text-gray-900 text-sm">
+                                  {senderName}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className={`relative group rounded-2xl px-4 py-3 ${
+                              isCurrentUser
+                                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-none'
+                                : 'bg-white border border-gray-200 rounded-bl-none shadow-sm'
+                            } ${message.id ? '' : 'opacity-70'}`}>
+                              <p className="break-words text-sm">{message.content}</p>
+                              <div className={`flex items-center justify-end gap-2 mt-2 ${
+                                isCurrentUser ? 'text-blue-200' : 'text-gray-500'
+                              }`}>
+                                <span className="text-xs">
+                                {new Date(message.created_at + 'Z').toLocaleString('en-PK', {
+  day: '2-digit',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+  timeZone: 'Asia/Karachi'
+})}
+                                </span>
+                                {isCurrentUser && message.read_by && message.read_by.length > 1 && (
+                                  <FiCheckCircle className="w-4 h-4" />
+                                )}
+                                
+                          
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                      <FiMessageSquare className="w-12 h-12 text-gray-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">No messages yet</h3>
+                    <p className="text-gray-600 text-base">
+                      Start the conversation
+                    </p>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="sticky bottom-0 bg-white p-4 border-t border-gray-200 shadow-lg">
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={messageInputRef}
+                    type="text"
+                    value={newMessage}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyPress}
+                    placeholder={`Message...`}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                    disabled={messageLoading}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!newMessage.trim() || messageLoading}
+                    className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {messageLoading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <FiSend className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="h-full">
+              {/* Same conversation list as desktop */}
+              <div className="w-full border-r border-gray-200 bg-white overflow-y-auto h-full">
+                <div className="sticky top-0 bg-white p-6 border-b border-gray-100 z-10">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                          connectionStatus === 'connected' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {connectionStatus === 'connected' ? 
+                            <FiWifi className="w-4 h-4" /> : 
+                            <FiWifiOff className="w-4 h-4" />
+                          }
+                          {connectionStatus === 'connected' ? 'Live' : 'Connecting'}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          • {onlineUsers.size} online
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleStartNewGroupChat}
+                        disabled={!isAdmin}
+                        className={`p-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-xl transition-all ${
+                          !isAdmin ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <FiUsers className="w-6 h-6" />
+                      </button>
+                      <button
+                        onClick={handleStartNewChat}
+                        className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-xl transition-all"
+                      >
+                        <FiUserPlus className="w-6 h-6" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mobile: All Members List */}
+                  <div className="mb-6">
+                    <h3 className="font-bold text-gray-900 text-lg mb-4">All Members</h3>
+                    <div className="flex overflow-x-auto pb-4 space-x-3">
+                      {allMembers.slice(0, 5).map((member, index) => {
+                        const isOnline = isUserOnline(member.user_id);
+                        const isCurrentUser = member.user_id === currentUser?.id;
+                        
+                        return (
+                          <div 
+                            key={member.user_id}
+                            className="flex-shrink-0 w-16 text-center animate-slide-in"
+                            style={{ animationDelay: `${index * 100}ms` }}
+                          >
+                            <div className="relative mx-auto">
+                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto">
+                                <span className="text-white font-bold">
+                                  {member.avatar}
+                                </span>
+                              </div>
+                              <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
+                                isOnline ? 'bg-green-500' : 'bg-gray-400'
+                              }`}></span>
+                            </div>
+                            <p className="text-xs font-medium text-gray-900 truncate mt-2">
+                              {isCurrentUser ? 'You' : member.name.split(' ')[0]}
+                            </p>
+                          </div>
+                        );
+                      })}
+                      {allMembers.length > 5 && (
+                        <div className="flex-shrink-0 w-16 text-center animate-slide-in" style={{ animationDelay: '500ms' }}>
+                          <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mx-auto">
+                            <span className="text-gray-600 font-bold text-sm">
+                              +{allMembers.length - 5}
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-gray-900 truncate mt-2">
+                            More
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  <h3 className="font-bold text-gray-900 text-lg mb-4 px-2">Your Conversations</h3>
+                  
+                  {conversations.length > 0 ? (
+                    conversations.map((conv, index) => {
+                      const otherMemberName = getOtherMemberName(conv);
+                      const otherMember = conversationOtherMembers[conv.id];
+                      const isOtherMemberOnline = otherMember ? isUserOnline(otherMember.user_id) : false;
+
+                      return (
+                        <div
+                          key={conv.id}
+                          onClick={() => setActiveConversation(conv)}
+                          className="p-4 rounded-2xl hover:bg-gray-50 cursor-pointer transition-all mb-3 border border-gray-200 animate-slide-in"
+                          style={{ animationDelay: `${index * 50}ms` }}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center shadow-md ${
+                              conv.is_group
+                                ? 'bg-gradient-to-br from-purple-500 to-pink-600'
+                                : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                            }`}>
+                              {conv.is_group ? (
+                                <FiUsers className="w-7 h-7 text-white" />
+                              ) : (
+                                <span className="text-white font-bold text-xl">
+                                  {otherMemberName?.charAt(0).toUpperCase() || "T"}
+                                </span>
+                              )}
+                              {!conv.is_group && (
+                                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                                  isOtherMemberOnline ? 'bg-green-500' : 'bg-gray-400'
+                                }`}></div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-gray-900 truncate text-lg">
+                                {otherMemberName}
+                              </p>
+                              <p className="text-gray-600 truncate text-sm">
+                                {conv.last_message || "Start a conversation..."}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                        <FiMessageSquare className="w-12 h-12 text-gray-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">No conversations</h3>
+                      <p className="text-gray-600 mb-4">Start chatting</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Error Toast */}
+        {error && (
+          <div className="fixed bottom-4 right-4 z-50 animate-slide-in">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl shadow-xl p-4 max-w-sm">
+              <div className="flex items-center gap-3">
+                <FiAlertCircle className="w-5 h-5 text-blue-600" />
+                <p className="text-blue-700 font-medium">{error}</p>
+                <button
+                  onClick={() => setError(null)}
+                  className="text-blue-500 hover:text-blue-700"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
