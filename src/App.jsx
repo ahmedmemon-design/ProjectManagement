@@ -173,7 +173,7 @@ export default function App() {
                         className="text-5xl md:text-7xl font-bold mb-4"
                       >
                         <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-purple-400 bg-clip-text text-transparent">
-                          BigBullDigital
+                          Big Bull CAMP
                         </span>
                       </motion.h1>
                       
