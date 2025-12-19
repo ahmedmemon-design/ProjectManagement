@@ -31,7 +31,7 @@ import {
 
 import { AuthContext } from "./context/AuthContext";
 
-// ✅ Enhanced Components with Red + White Theme and Advanced Animations
+// ✅ ENHANCED Components with Red + White Theme and Advanced Animations
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = "Confirm", cancelText = "Cancel", type = "warning" }) => {
   if (!isOpen) return null;
 
@@ -108,24 +108,195 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirm
   );
 };
 
-const LoadingOverlay = ({ message = "Loading..." }) => (
-  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-modal-fade-in">
-    <div className="bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(239,68,68,0.3)] p-8 max-w-sm mx-4 animate-modal-slide-up">
-      <div className="flex flex-col items-center">
-        <div className="relative mb-6">
-          <div className="absolute -inset-6 rounded-full bg-gradient-to-r from-red-500/20 to-pink-500/20 animate-pulse-slow"></div>
-          <div className="relative w-20 h-20 rounded-full bg-gradient-to-r from-red-500 to-pink-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-            <FiRefreshCw className="w-10 h-10 text-white animate-spin-gentle" />
-          </div>
-          <div className="absolute -inset-4 rounded-full border-4 border-red-500/20 animate-ping-slow"></div>
+// ✅ ENHANCED LOADING COMPONENTS
+const LoadingAnimation = ({ type = "spinner", size = "medium", className = "" }) => {
+  const sizes = {
+    small: "w-6 h-6",
+    medium: "w-12 h-12",
+    large: "w-16 h-16",
+    xlarge: "w-24 h-24"
+  };
+
+  const themes = {
+    red: "from-red-500 to-rose-500",
+    pink: "from-pink-500 to-rose-500",
+    white: "from-white/90 to-white/70"
+  };
+
+  if (type === "spinner") {
+    return (
+      <div className={`relative ${sizes[size]} ${className}`}>
+        {/* Outer glow */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-400/30 to-rose-400/30 animate-ping-slow"></div>
+        
+        {/* Main spinner */}
+        <div className="relative w-full h-full">
+          <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${themes.red} animate-gradient-shift opacity-80`}></div>
+          <div className="absolute inset-[3px] bg-white rounded-full"></div>
+          <div className={`absolute inset-[3px] rounded-full border-[3px] border-transparent border-t-gradient-to-r ${themes.red} animate-spin-gentle`}></div>
         </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2 animate-text-slide-up" style={{animationDelay: '0.1s'}}>Please wait</h3>
-        <p className="text-gray-600 text-center animate-text-slide-up" style={{animationDelay: '0.2s'}}>{message}</p>
-        <div className="mt-6 w-24 h-2 bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 rounded-full animate-loading-bar"></div>
+        
+        {/* Inner dot */}
+        <div className="absolute inset-1/4 rounded-full bg-gradient-to-r from-red-500 to-rose-500 animate-pulse-slow"></div>
+      </div>
+    );
+  }
+
+  if (type === "dots") {
+    return (
+      <div className={`flex items-center gap-2 ${className}`}>
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={`w-3 h-3 rounded-full bg-gradient-to-r ${themes.red} animate-typing-dot`}
+            style={{ animationDelay: `${(i - 1) * 0.2}s` }}
+          ></div>
+        ))}
+      </div>
+    );
+  }
+
+  if (type === "pulse") {
+    return (
+      <div className={`relative ${sizes[size]} ${className}`}>
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-500/40 to-rose-500/40 animate-pulse-slow"></div>
+        <div className={`absolute inset-2 rounded-full bg-gradient-to-r ${themes.red} animate-pulse-slow`}></div>
+      </div>
+    );
+  }
+
+  if (type === "bars") {
+    return (
+      <div className={`flex items-center justify-center gap-1 ${className}`}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="w-1.5 bg-gradient-to-b from-red-500 to-rose-500 rounded-full animate-bar-wave"
+            style={{ 
+              animationDelay: `${(i - 1) * 0.1}s`,
+              height: `${i * 8}px`
+            }}
+          ></div>
+        ))}
+      </div>
+    );
+  }
+
+  return null;
+};
+
+const LoadingOverlay = ({ message = "Loading...", progress, subMessage }) => (
+  <div className="fixed inset-0 bg-gradient-to-br from-white/95 to-red-50/95 backdrop-blur-sm z-50 flex items-center justify-center animate-modal-fade-in">
+    <div className="relative max-w-sm w-full mx-4 animate-modal-slide-up">
+      {/* Background effects */}
+      <div className="absolute -inset-4 bg-gradient-to-r from-red-500/10 to-rose-500/10 rounded-3xl blur-xl animate-pulse-slow"></div>
+      <div className="absolute -inset-2 bg-gradient-to-r from-red-500/5 to-rose-500/5 rounded-3xl blur-lg animate-gradient-shift"></div>
+      
+      <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_-15px_rgba(239,68,68,0.2)] border border-red-100 overflow-hidden p-8">
+        {/* Animated border */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent animate-border-flow"></div>
+        
+        <div className="flex flex-col items-center text-center">
+          {/* Main loader */}
+          <div className="relative mb-6">
+            <LoadingAnimation type="spinner" size="xlarge" />
+            
+            {/* Floating dots */}
+            <div className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 animate-float" 
+              style={{ animationDelay: '0.2s' }}></div>
+            <div className="absolute -bottom-2 -left-2 w-3 h-3 rounded-full bg-gradient-to-r from-red-500 to-pink-500 animate-float" 
+              style={{ animationDelay: '0.4s' }}></div>
+          </div>
+          
+          {/* Text content */}
+          <div className="space-y-4 w-full">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2 animate-text-slide-up" 
+                style={{animationDelay: '0.1s'}}>
+                {message}
+              </h3>
+              {subMessage && (
+                <p className="text-sm text-red-600/70 animate-text-slide-up" 
+                  style={{animationDelay: '0.2s'}}>
+                  {subMessage}
+                </p>
+              )}
+            </div>
+            
+            {/* Progress bar if provided */}
+            {progress !== undefined && (
+              <div className="space-y-2 animate-text-slide-up" style={{animationDelay: '0.3s'}}>
+                <div className="h-2 bg-red-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-red-500 to-rose-500 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-red-600/70 font-medium">
+                  {Math.round(progress)}%
+                </p>
+              </div>
+            )}
+            
+            {/* Loading dots for indication */}
+            <div className="flex justify-center pt-2">
+              <LoadingAnimation type="dots" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 );
+
+const LoadingSkeleton = ({ type = "message", count = 1 }) => {
+  if (type === "message") {
+    return Array(count).fill(0).map((_, i) => (
+      <div key={i} className="animate-pulse-slow" style={{ animationDelay: `${i * 0.1}s` }}>
+        <div className="flex gap-3 p-4">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-24 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+            <div className="h-3 w-full rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+            <div className="h-3 w-32 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+          </div>
+        </div>
+      </div>
+    ));
+  }
+
+  if (type === "conversation") {
+    return Array(count).fill(0).map((_, i) => (
+      <div key={i} className="animate-pulse-slow" style={{ animationDelay: `${i * 0.1}s` }}>
+        <div className="p-4 border-b border-red-50">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-32 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+              <div className="h-3 w-24 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ));
+  }
+
+  if (type === "card") {
+    return Array(count).fill(0).map((_, i) => (
+      <div key={i} className="animate-pulse-slow" style={{ animationDelay: `${i * 0.1}s` }}>
+        <div className="bg-white rounded-xl border border-red-100 p-4 shadow-sm">
+          <div className="space-y-3">
+            <div className="h-4 w-3/4 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+            <div className="h-3 w-full rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+            <div className="h-3 w-2/3 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+          </div>
+        </div>
+      </div>
+    ));
+  }
+
+  return null;
+};
 
 export default function WorkspaceChat({ workspaceId, currentUser }) {
   // State variables
@@ -158,9 +329,25 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [membersToAdd, setMembersToAdd] = useState([]);
 
-  // ✅ ENHANCED STATES
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadingMessage, setLoadingMessage] = useState("Loading conversations...");
+  // ✅ ENHANCED LOADING STATES
+  const [isLoading, setIsLoading] = useState({
+    initial: true,
+    messages: false,
+    members: false,
+    conversations: false
+  });
+  
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const loadingSteps = [
+    "Initializing workspace...",
+    "Connecting to chat service...",
+    "Loading team members...",
+    "Fetching conversations...",
+    "Setting up real-time features...",
+    "Ready to chat!"
+  ];
+  
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationConfig, setConfirmationConfig] = useState({
     title: "",
@@ -189,7 +376,7 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
   const { profile } = useContext(AuthContext);
   const isAdmin = profile?.role === "admin";
 
-  // ✅ ENHANCED ANIMATION STYLES
+  // ✅ ENHANCED ANIMATION STYLES - Optimized and Simplified
   const styles = `
     /* Enhanced Animations for Red Theme */
     @keyframes fade-in {
@@ -198,54 +385,103 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
     }
     
     @keyframes slide-up {
-      from { transform: translateY(30px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+      from { 
+        transform: translateY(20px) scale(0.98); 
+        opacity: 0; 
+      }
+      to { 
+        transform: translateY(0) scale(1); 
+        opacity: 1; 
+      }
     }
     
     @keyframes slide-in {
-      from { transform: translateX(-30px); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+      from { 
+        transform: translateX(-10px); 
+        opacity: 0; 
+      }
+      to { 
+        transform: translateX(0); 
+        opacity: 1; 
+      }
     }
     
     @keyframes slide-in-right {
-      from { transform: translateX(30px); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+      from { 
+        transform: translateX(10px); 
+        opacity: 0; 
+      }
+      to { 
+        transform: translateX(0); 
+        opacity: 1; 
+      }
     }
     
     @keyframes scale-in {
-      from { transform: scale(0.9) rotate(-2deg); opacity: 0; }
-      to { transform: scale(1) rotate(0); opacity: 1; }
+      from { 
+        transform: scale(0.95); 
+        opacity: 0; 
+      }
+      to { 
+        transform: scale(1); 
+        opacity: 1; 
+      }
     }
     
     @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
+      0%, 100% { 
+        transform: translateY(0) rotate(0); 
+      }
+      50% { 
+        transform: translateY(-6px) rotate(1deg); 
+      }
     }
     
     @keyframes shimmer {
-      0% { background-position: -1000px 0; }
-      100% { background-position: 1000px 0; }
+      0% { 
+        background-position: -1000px 0; 
+      }
+      100% { 
+        background-position: 1000px 0; 
+      }
     }
     
     @keyframes gradient-shift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+      0%, 100% { 
+        background-position: 0% 50%; 
+      }
+      50% { 
+        background-position: 100% 50%; 
+      }
     }
     
     @keyframes pulse-glow {
-      0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
-      50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.5); }
+      0%, 100% { 
+        opacity: 1; 
+        filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.2));
+      }
+      50% { 
+        opacity: 0.8; 
+        filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.3));
+      }
     }
     
     @keyframes bounce-subtle {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-5px); }
+      0%, 100% { 
+        transform: translateY(0); 
+      }
+      50% { 
+        transform: translateY(-3px); 
+      }
     }
     
     @keyframes spin-gentle {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+      from { 
+        transform: rotate(0deg); 
+      }
+      to { 
+        transform: rotate(360deg); 
+      }
     }
     
     @keyframes modal-fade-in {
@@ -261,17 +497,6 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
     
     @keyframes modal-slide-up {
       from { 
-        transform: translateY(40px) scale(0.95); 
-        opacity: 0; 
-      }
-      to { 
-        transform: translateY(0) scale(1); 
-        opacity: 1; 
-      }
-    }
-    
-    @keyframes text-slide-up {
-      from { 
         transform: translateY(20px); 
         opacity: 0; 
       }
@@ -281,106 +506,225 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
       }
     }
     
-    @keyframes loading-bar {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(100%); }
+    @keyframes text-slide-up {
+      from { 
+        transform: translateY(10px); 
+        opacity: 0; 
+      }
+      to { 
+        transform: translateY(0); 
+        opacity: 1; 
+      }
     }
     
     @keyframes ping-slow {
-      0% { transform: scale(1); opacity: 1; }
-      100% { transform: scale(2); opacity: 0; }
+      0% { 
+        transform: scale(1); 
+        opacity: 0.8; 
+      }
+      100% { 
+        transform: scale(1.5); 
+        opacity: 0; 
+      }
     }
     
     @keyframes pulse-slow {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+      0%, 100% { 
+        opacity: 1; 
+      }
+      50% { 
+        opacity: 0.6; 
+      }
     }
     
     @keyframes ripple {
-      0% { transform: scale(0); opacity: 1; }
-      100% { transform: scale(4); opacity: 0; }
+      0% { 
+        transform: scale(0); 
+        opacity: 1; 
+      }
+      100% { 
+        transform: scale(4); 
+        opacity: 0; 
+      }
     }
     
     @keyframes typing-dots {
-      0%, 60%, 100% { transform: translateY(0); }
-      30% { transform: translateY(-8px); }
+      0%, 60%, 100% { 
+        transform: translateY(0); 
+      }
+      30% { 
+        transform: translateY(-5px); 
+      }
+    }
+    
+    @keyframes bar-wave {
+      0%, 100% { 
+        transform: scaleY(1); 
+      }
+      50% { 
+        transform: scaleY(0.5); 
+      }
+    }
+    
+    @keyframes border-flow {
+      0% { 
+        transform: translateX(-100%); 
+      }
+      100% { 
+        transform: translateX(100%); 
+      }
+    }
+    
+    @keyframes wave {
+      0%, 100% { 
+        transform: translateX(0); 
+      }
+      50% { 
+        transform: translateX(5px); 
+      }
     }
     
     /* Animation Classes */
-    .animate-fade-in { animation: fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-    .animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-    .animate-slide-in { animation: slide-in 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-    .animate-slide-in-right { animation: slide-in-right 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-    .animate-scale-in { animation: scale-in 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-    .animate-float { animation: float 3s ease-in-out infinite; }
-    .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
-    .animate-bounce-subtle { animation: bounce-subtle 2s ease-in-out infinite; }
-    .animate-spin-gentle { animation: spin-gentle 1.5s linear infinite; }
-    .animate-modal-fade-in { animation: modal-fade-in 0.3s ease-out; }
-    .animate-modal-slide-up { animation: modal-slide-up 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-    .animate-text-slide-up { animation: text-slide-up 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-    .animate-loading-bar { animation: loading-bar 1.5s ease-in-out infinite; }
-    .animate-ping-slow { animation: ping-slow 2s ease-out infinite; }
-    .animate-pulse-slow { animation: pulse-slow 3s ease-in-out infinite; }
-    .animate-ripple { animation: ripple 1s ease-out; }
-    .animate-typing-dot:nth-child(1) { animation: typing-dots 1.4s ease-in-out infinite; }
-    .animate-typing-dot:nth-child(2) { animation: typing-dots 1.4s ease-in-out infinite 0.2s; }
-    .animate-typing-dot:nth-child(3) { animation: typing-dots 1.4s ease-in-out infinite 0.4s; }
+    .animate-fade-in { 
+      animation: fade-in 0.3s ease-out; 
+    }
     
-    /* Gradient Background Animation */
-    .animate-gradient-shift {
+    .animate-slide-up { 
+      animation: slide-up 0.4s cubic-bezier(0.2, 0, 0.1, 1); 
+    }
+    
+    .animate-slide-in { 
+      animation: slide-in 0.4s cubic-bezier(0.2, 0, 0.1, 1); 
+    }
+    
+    .animate-slide-in-right { 
+      animation: slide-in-right 0.4s cubic-bezier(0.2, 0, 0.1, 1); 
+    }
+    
+    .animate-scale-in { 
+      animation: scale-in 0.4s cubic-bezier(0.2, 0, 0.1, 1); 
+    }
+    
+    .animate-float { 
+      animation: float 3s ease-in-out infinite; 
+    }
+    
+    .animate-pulse-glow { 
+      animation: pulse-glow 2s ease-in-out infinite; 
+    }
+    
+    .animate-bounce-subtle { 
+      animation: bounce-subtle 2s ease-in-out infinite; 
+    }
+    
+    .animate-spin-gentle { 
+      animation: spin-gentle 1.2s linear infinite; 
+    }
+    
+    .animate-modal-fade-in { 
+      animation: modal-fade-in 0.3s ease-out; 
+    }
+    
+    .animate-modal-slide-up { 
+      animation: modal-slide-up 0.4s cubic-bezier(0.2, 0, 0.1, 1); 
+    }
+    
+    .animate-text-slide-up { 
+      animation: text-slide-up 0.5s cubic-bezier(0.2, 0, 0.1, 1) forwards; 
+    }
+    
+    .animate-ping-slow { 
+      animation: ping-slow 2s ease-out infinite; 
+    }
+    
+    .animate-pulse-slow { 
+      animation: pulse-slow 2s ease-in-out infinite; 
+    }
+    
+    .animate-ripple { 
+      animation: ripple 1s ease-out; 
+    }
+    
+    .animate-typing-dot { 
+      animation: typing-dots 1.2s ease-in-out infinite; 
+    }
+    
+    .animate-bar-wave { 
+      animation: bar-wave 1s ease-in-out infinite; 
+    }
+    
+    .animate-border-flow { 
+      animation: border-flow 2s linear infinite; 
+    }
+    
+    .animate-wave { 
+      animation: wave 1.5s ease-in-out infinite; 
+    }
+    
+    .animate-gradient-shift { 
       background-size: 200% 200%;
-      animation: gradient-shift 3s ease infinite;
+      animation: gradient-shift 3s ease infinite; 
     }
     
-    /* Shimmer Effect */
-    .shimmer {
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    .shimmer { 
+      background: linear-gradient(
+        90deg, 
+        rgba(254, 202, 202, 0.1) 25%, 
+        rgba(254, 202, 202, 0.2) 50%, 
+        rgba(254, 202, 202, 0.1) 75%
+      );
       background-size: 1000px 100%;
-      animation: shimmer 2s infinite;
+      animation: shimmer 2s infinite; 
     }
     
-    /* Page Transition */
-    .page-transition-enter {
-      opacity: 0;
-      transform: translateY(20px);
+    /* Smooth transitions */
+    .transition-all-300 { 
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
     }
     
-    .page-transition-enter-active {
-      opacity: 1;
-      transform: translateY(0);
-      transition: opacity 0.4s, transform 0.4s;
+    /* Stagger animations */
+    .stagger > * { 
+      opacity: 0; 
+      animation: slide-up 0.5s cubic-bezier(0.2, 0, 0.1, 1) forwards; 
     }
     
-    .page-transition-exit {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    
-    .page-transition-exit-active {
-      opacity: 0;
-      transform: translateY(-20px);
-      transition: opacity 0.3s, transform 0.3s;
-    }
+    .stagger > *:nth-child(1) { animation-delay: 0.1s; }
+    .stagger > *:nth-child(2) { animation-delay: 0.2s; }
+    .stagger > *:nth-child(3) { animation-delay: 0.3s; }
+    .stagger > *:nth-child(4) { animation-delay: 0.4s; }
+    .stagger > *:nth-child(5) { animation-delay: 0.5s; }
     
     /* Red Theme Custom Scrollbar */
     ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
     }
     
     ::-webkit-scrollbar-track {
       background: #fecaca;
-      border-radius: 4px;
+      border-radius: 3px;
     }
     
     ::-webkit-scrollbar-thumb {
       background: linear-gradient(to bottom, #ef4444, #dc2626);
-      border-radius: 4px;
+      border-radius: 3px;
     }
     
     ::-webkit-scrollbar-thumb:hover {
       background: linear-gradient(to bottom, #dc2626, #b91c1c);
+    }
+    
+    /* Responsive animations */
+    @media (max-width: 768px) {
+      .animate-slide-up,
+      .animate-slide-in,
+      .animate-slide-in-right {
+        animation-duration: 0.3s;
+      }
+      
+      .animate-text-slide-up {
+        animation-duration: 0.4s;
+      }
     }
   `;
 
@@ -404,59 +748,82 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
     };
   }, []);
 
-  // ✅ ENHANCED INITIAL LOAD: With advanced animations
+  // ✅ ENHANCED INITIAL LOAD: With progress tracking
   useEffect(() => {
     if (!workspaceId || !currentUser?.id || isInitializedRef.current) {
       return;
     }
 
-    console.log("🚀 Initial load starting with enhanced animations...");
-    setIsLoading(true);
-    setLoadingMessage("Initializing workspace...");
-    setPageTransition(true);
+    console.log("🚀 Starting enhanced loading flow...");
     isInitializedRef.current = true;
-
-    const loadInitialData = async () => {
+    
+    const startLoadingFlow = async () => {
       try {
-        // Simulate loading steps with different messages
-        const steps = [
-          { message: "Connecting to workspace...", delay: 300 },
-          { message: "Loading team members...", delay: 400 },
-          { message: "Fetching conversations...", delay: 500 },
-          { message: "Setting up real-time chat...", delay: 600 },
-        ];
-
-        for (const step of steps) {
-          setLoadingMessage(step.message);
-          await new Promise(resolve => setTimeout(resolve, step.delay));
-        }
-
-        await Promise.all([
-          loadWorkspaceMembers(),
-          loadConversations()
-        ]);
+        // Step 1: Initialize
+        setLoadingStep(0);
+        setLoadingProgress(10);
+        await new Promise(resolve => setTimeout(resolve, 300));
         
-        console.log("✅ Initial load complete");
+        // Step 2: Connect services
+        setLoadingStep(1);
+        setLoadingProgress(30);
+        await setupPresence();
         
-        // Small delay to show completion state
-        setTimeout(() => {
-          setIsLoading(false);
-          setPageTransition(false);
-        }, 500);
+        // Step 3: Load members
+        setLoadingStep(2);
+        setLoadingProgress(50);
+        await loadWorkspaceMembers();
+        
+        // Step 4: Load conversations
+        setLoadingStep(3);
+        setLoadingProgress(70);
+        await loadConversations();
+        
+        // Step 5: Setup realtime
+        setLoadingStep(4);
+        setLoadingProgress(90);
+        await setupRealtimeServices();
+        
+        // Complete
+        setLoadingStep(5);
+        setLoadingProgress(100);
+        
+        // Small delay to show completion
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Clear loading states
+        setIsLoading(prev => ({ ...prev, initial: false }));
+        setPageTransition(true);
         
       } catch (error) {
-        console.error("❌ Error loading initial data:", error);
-        setError("Failed to load data");
-        setIsLoading(false);
-        setPageTransition(false);
+        console.error("❌ Error in loading flow:", error);
+        setError("Failed to initialize workspace");
       }
     };
 
-    loadInitialData();
+    startLoadingFlow();
   }, [workspaceId, currentUser?.id]);
+
+  // ✅ ENHANCED: Functions to show specific loading states
+  const showMessageLoading = () => {
+    setIsLoading(prev => ({ ...prev, messages: true }));
+  };
+
+  const hideMessageLoading = () => {
+    setIsLoading(prev => ({ ...prev, messages: false }));
+  };
+
+  const showConversationLoading = () => {
+    setIsLoading(prev => ({ ...prev, conversations: true }));
+  };
+
+  const hideConversationLoading = () => {
+    setIsLoading(prev => ({ ...prev, conversations: false }));
+  };
 
   // Load workspace members with enhanced loading state
   const loadWorkspaceMembers = async () => {
+    setIsLoading(prev => ({ ...prev, members: true }));
     try {
       const { data: workspaceMembers, error: membersError } = await supabase
         .from("workspace_members")
@@ -496,11 +863,14 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
     } catch (error) {
       console.error("Error fetching members:", error);
       setAllMembers([]);
+    } finally {
+      setIsLoading(prev => ({ ...prev, members: false }));
     }
   };
 
   // Load conversations with enhanced animations
   const loadConversations = async () => {
+    showConversationLoading();
     try {
       const { data: convData, error: convError } = await supabase
         .from("conversation_members")
@@ -535,6 +905,8 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
     } catch (error) {
       console.error("Error loading conversations:", error);
       setConversations([]);
+    } finally {
+      hideConversationLoading();
     }
   };
 
@@ -637,86 +1009,81 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
   };
 
   // ✅ ENHANCED PRESENCE: Setup with red theme
-  useEffect(() => {
+  const setupPresence = async () => {
     if (!currentUser?.id || !workspaceId) return;
 
     console.log("🟢 Setting up presence channel with red theme");
     let presenceChannel = null;
 
-    const setupPresence = async () => {
-      try {
-        if (presenceChannelRef.current) {
-          await supabase.removeChannel(presenceChannelRef.current);
-        }
+    try {
+      if (presenceChannelRef.current) {
+        await supabase.removeChannel(presenceChannelRef.current);
+      }
 
-        presenceChannel = supabase.channel(`workspace:${workspaceId}:presence`, {
-          config: {
-            presence: {
-              key: currentUser.id,
-            },
+      presenceChannel = supabase.channel(`workspace:${workspaceId}:presence`, {
+        config: {
+          presence: {
+            key: currentUser.id,
           },
-        });
+        },
+      });
 
-        presenceChannel
-          .on('presence', { event: 'sync' }, () => {
-            const state = presenceChannel.presenceState();
-            const online = new Set();
-            
-            Object.keys(state).forEach(key => {
-              const presences = state[key];
-              if (presences && presences.length > 0) {
-                online.add(key);
-              }
-            });
-            
-            setOnlineUsers(online);
-            console.log("🟢 Online users synced:", online.size);
-          })
-          .on('presence', { event: 'join' }, ({ key }) => {
-            console.log("👋 User joined:", key);
-            setOnlineUsers(prev => new Set([...prev, key]));
-          })
-          .on('presence', { event: 'leave' }, ({ key }) => {
-            console.log("👋 User left:", key);
-            setOnlineUsers(prev => {
-              const updated = new Set(prev);
-              updated.delete(key);
-              return updated;
-            });
+      presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+          const state = presenceChannel.presenceState();
+          const online = new Set();
+          
+          Object.keys(state).forEach(key => {
+            const presences = state[key];
+            if (presences && presences.length > 0) {
+              online.add(key);
+            }
           });
-
-        await presenceChannel.subscribe(async (status) => {
-          console.log("📡 Presence status:", status);
-          if (status === 'SUBSCRIBED') {
-            await presenceChannel.track({
-              user_id: currentUser.id,
-              name: currentUser.name,
-              email: currentUser.email,
-              online_at: new Date().toISOString(),
-            });
-            
-            setConnectionStatus('connected');
-          } else if (status === 'CLOSED') {
-            setConnectionStatus('disconnected');
-          }
+          
+          setOnlineUsers(online);
+          console.log("🟢 Online users synced:", online.size);
+        })
+        .on('presence', { event: 'join' }, ({ key }) => {
+          console.log("👋 User joined:", key);
+          setOnlineUsers(prev => new Set([...prev, key]));
+        })
+        .on('presence', { event: 'leave' }, ({ key }) => {
+          console.log("👋 User left:", key);
+          setOnlineUsers(prev => {
+            const updated = new Set(prev);
+            updated.delete(key);
+            return updated;
+          });
         });
 
-        presenceChannelRef.current = presenceChannel;
+      await presenceChannel.subscribe(async (status) => {
+        console.log("📡 Presence status:", status);
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            user_id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+            online_at: new Date().toISOString(),
+          });
+          
+          setConnectionStatus('connected');
+        } else if (status === 'CLOSED') {
+          setConnectionStatus('disconnected');
+        }
+      });
 
-      } catch (error) {
-        console.error('❌ Error setting up presence:', error);
-        setConnectionStatus('error');
-      }
-    };
+      presenceChannelRef.current = presenceChannel;
 
-    setupPresence();
+    } catch (error) {
+      console.error('❌ Error setting up presence:', error);
+      setConnectionStatus('error');
+    }
+  };
 
-    return () => {
-      if (presenceChannel) {
-        supabase.removeChannel(presenceChannel);
-      }
-    };
-  }, [currentUser?.id, workspaceId]);
+  // Setup realtime services
+  const setupRealtimeServices = async () => {
+    // Already handled in setupPresence
+  };
 
   // ✅ ENHANCED MESSAGE CHANNEL: Setup with smooth transitions
   useEffect(() => {
@@ -742,14 +1109,8 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
       }
       
       // Load messages first with loading state
-      setIsLoading(true);
-      setLoadingMessage("Loading messages...");
+      showMessageLoading();
       await loadMessages(activeConversation.id);
-      
-      // Small delay for smooth transition
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 300);
       
       // Setup realtime subscription
       setupRealtimeSubscription(activeConversation.id);
@@ -843,6 +1204,9 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
     } catch (error) {
       console.error("❌ Error loading messages:", error);
       setMessages([]);
+    } finally {
+      // Small delay for smooth transition
+      setTimeout(() => hideMessageLoading(), 300);
     }
   };
 
@@ -1170,6 +1534,12 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
     const messageContent = newMessage.trim();
     const tempId = `temp_${Date.now()}`;
     
+    // Create sending animation
+    const sendButton = document.querySelector('button[onClick*="sendMessage"]');
+    if (sendButton) {
+      sendButton.classList.add('animate-pulse-slow');
+    }
+
     // Enhanced optimistic update with ripple effect
     const optimisticMessage = {
       id: null,
@@ -1252,10 +1622,12 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
       await loadConversations();
       
       // Success animation
-      const sendButton = document.querySelector('button[onClick*="sendMessage"]');
       if (sendButton) {
         sendButton.classList.add('animate-bounce-subtle');
-        setTimeout(() => sendButton.classList.remove('animate-bounce-subtle'), 1000);
+        setTimeout(() => {
+          sendButton.classList.remove('animate-bounce-subtle');
+          sendButton.classList.remove('animate-pulse-slow');
+        }, 1000);
       }
       
     } catch (error) {
@@ -1270,6 +1642,11 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
       if (messageInputRef.current) {
         messageInputRef.current.classList.add('animate-shake');
         setTimeout(() => messageInputRef.current.classList.remove('animate-shake'), 500);
+      }
+      
+      // Remove pulse animation
+      if (sendButton) {
+        sendButton.classList.remove('animate-pulse-slow');
       }
       
       setTimeout(() => setError(null), 3000);
@@ -2107,14 +2484,285 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
     setSearchQuery("");
   };
 
+  // ✅ ENHANCED: Loading indicator in message area
+  const renderMessageArea = () => {
+    if (isLoading.messages) {
+      return (
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <div className="stagger space-y-4 lg:space-y-6">
+            <LoadingSkeleton type="message" count={3} />
+            <div className="text-center py-8">
+              <LoadingAnimation type="dots" className="mx-auto" />
+              <p className="text-red-600/70 mt-4 text-sm animate-pulse-slow">
+                Loading messages...
+              </p>
+            </div>
+            <LoadingSkeleton type="message" count={2} />
+          </div>
+        </div>
+      );
+    }
+
+    if (messages.length > 0) {
+      return (
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <div className="space-y-4 lg:space-y-6 stagger">
+            {messages.map((message, index) => {
+              const isCurrentUser = message.sender_id === currentUser?.id;
+              const showAvatar = index === 0 || messages[index - 1]?.sender_id !== message.sender_id;
+              const senderName = message.sender?.name || "Unknown User";
+              const isSenderOnline = isUserOnline(message.sender_id);
+              
+              return (
+                <div
+                  key={message.id || message.temp_id}
+                  className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${showAvatar ? 'mt-4 lg:mt-6' : 'mt-2 lg:mt-3'}`}
+                >
+                  <div className={`max-w-[85%] lg:max-w-2xl ${isCurrentUser ? 'ml-auto' : ''}`}>
+                    {!isCurrentUser && showAvatar && (
+                      <div className="flex items-center gap-2 mb-1 lg:mb-2">
+                        <div className="relative">
+                          <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-md">
+                            <span className="text-white font-bold text-sm lg:text-base">
+                              {senderName?.charAt(0).toUpperCase() || "U"}
+                            </span>
+                          </div>
+                          {isSenderOnline && (
+                            <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white bg-green-500 animate-pulse-slow"></div>
+                          )}
+                        </div>
+                        <div>
+                          <span className="font-bold text-gray-900 text-sm lg:text-base">
+                            {senderName}
+                          </span>
+                          {isSenderOnline && (
+                            <span className="text-xs text-green-600 ml-2 animate-pulse-slow">• Online</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={`relative group rounded-2xl lg:rounded-3xl px-4 lg:px-6 py-3 lg:py-4 ${
+                      isCurrentUser
+                        ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-br-none shadow-lg hover:shadow-xl transition-all duration-300'
+                        : 'bg-white border border-red-200 rounded-bl-none shadow-sm hover:shadow-md transition-all duration-300'
+                    } ${message.id ? '' : 'opacity-70'}`}>
+                      <p className="break-words text-sm lg:text-base">{message.content}</p>
+                      <div className={`flex items-center justify-end gap-2 mt-2 ${
+                        isCurrentUser ? 'text-red-200' : 'text-red-600/70'
+                      }`}>
+                        <span className="text-xs lg:text-sm">
+                          {new Date(message.created_at + 'Z').toLocaleString('en-PK', {
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                            timeZone: 'Asia/Karachi'
+                          })}
+                        </span>
+                        {isCurrentUser && message.read_by && message.read_by.length > 1 && (
+                          <FiCheckCircle className="w-4 h-4 lg:w-5 lg:h-5" title="Read" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div ref={messagesEndRef} />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <div className="text-center py-12 lg:py-24 animate-slide-up">
+          <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 lg:mb-10 rounded-full bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center animate-float">
+            <FiMessageSquare className="w-12 h-12 lg:w-16 lg:h-16 text-red-400" />
+          </div>
+          <h3 className="text-xl lg:text-3xl font-bold text-gray-900 mb-2 lg:mb-4 animate-text-slide-up" style={{animationDelay: '0.1s'}}>No messages yet</h3>
+          <p className="text-red-600/70 text-base lg:text-xl mb-8 lg:mb-12 max-w-md lg:max-w-2xl mx-auto animate-text-slide-up" style={{animationDelay: '0.2s'}}>
+            Start the conversation by sending your first message
+          </p>
+          <div className="flex gap-3 justify-center animate-text-slide-up" style={{animationDelay: '0.3s'}}>
+            <div className="w-3 h-3 bg-red-500 rounded-full animate-bounce-subtle"></div>
+            <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce-subtle" style={{animationDelay: '0.2s'}}></div>
+            <div className="w-3 h-3 bg-rose-500 rounded-full animate-bounce-subtle" style={{animationDelay: '0.4s'}}></div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ✅ ENHANCED: Loading indicator in conversation list
+  const renderConversationList = () => {
+    if (isLoading.conversations) {
+      return (
+        <div className="p-4">
+          <h3 className="font-bold text-gray-900 text-lg mb-4 px-2">Your Conversations</h3>
+          <LoadingSkeleton type="conversation" count={4} />
+        </div>
+      );
+    }
+
+    if (conversations.length > 0) {
+      return (
+        <div className="p-4">
+          <h3 className="font-bold text-gray-900 text-lg mb-4 px-2">Your Conversations</h3>
+          {conversations.map((conv, index) => {
+            const unreadCount = messages.filter(msg => 
+              msg.conversation_id === conv.id && 
+              !msg.read_by?.includes(currentUser?.id) &&
+              msg.sender_id !== currentUser?.id
+            ).length;
+
+            const otherMemberName = getOtherMemberName(conv);
+            const convMembers = getConversationMembers(conv.id);
+            const memberCount = convMembers.length;
+
+            const otherMember = conversationOtherMembers[conv.id];
+            const isOtherMemberOnline = otherMember ? isUserOnline(otherMember.user_id) : false;
+
+            return (
+              <div
+                key={conv.id}
+                onClick={() => setActiveConversation(conv)}
+                className={`group p-4 rounded-2xl cursor-pointer transition-all duration-300 mb-3 animate-slide-in ${
+                  activeConversation?.id === conv.id
+                    ? 'bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-500 shadow-lg animate-pulse-glow'
+                    : 'hover:bg-red-50 border border-transparent hover:border-red-200'
+                }`}
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center shadow-md group-hover:shadow-xl transition-all duration-300 ${
+                    conv.is_group
+                      ? 'bg-gradient-to-br from-pink-500 to-rose-600'
+                      : 'bg-gradient-to-br from-red-500 to-pink-600'
+                  }`}>
+                    {conv.is_group ? (
+                      <FiUsers className="w-7 h-7 text-white" />
+                    ) : (
+                      <span className="text-white font-bold text-xl">
+                        {otherMemberName?.charAt(0).toUpperCase() || "T"}
+                      </span>
+                    )}
+                    {!conv.is_group && (
+                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                        isOtherMemberOnline ? 'bg-green-500 animate-pulse-slow' : 'bg-gray-400'
+                      }`}></div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-gray-900 truncate text-lg">
+                        {otherMemberName}
+                      </p>
+                      {conv.last_message_at && (
+                        <span className="text-xs text-red-600/70 whitespace-nowrap">
+                          {new Date(conv.last_message_at + 'Z').toLocaleString('en-PK', {
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                            timeZone: 'Asia/Karachi'
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-gray-600 truncate text-sm flex-1">
+                        {conv.last_message || "Start a conversation..."}
+                      </p>
+                      {unreadCount > 0 && (
+                        <span className="bg-gradient-to-r from-red-500 to-pink-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center ml-2 flex-shrink-0 shadow-sm animate-pulse-glow">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    {conv.is_group && memberCount > 0 && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <p className="text-xs text-red-600/70">
+                          {memberCount} member{memberCount !== 1 ? 's' : ''}
+                        </p>
+                        {conversationOwner[conv.id] && (
+                          <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
+                            Owner: {conversationOwner[conv.id]?.name}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-4">
+        <h3 className="font-bold text-gray-900 text-lg mb-4 px-2">Your Conversations</h3>
+        <div className="text-center py-12 animate-slide-up">
+          <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center animate-float">
+            <FiMessageSquare className="w-12 h-12 text-red-400" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No conversations yet</h3>
+          <p className="text-red-600/70 mb-4">Start chatting with your team</p>
+          <div className="flex flex-col gap-3 mt-6">
+            <button
+              onClick={handleStartNewChat}
+              className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-bold hover:shadow-lg transition-all duration-300 hover:scale-[1.02] animate-slide-up"
+              style={{ animationDelay: '100ms' }}
+            >
+              Start Direct Message
+            </button>
+            <button
+              onClick={handleStartNewGroupChat}
+              disabled={!isAdmin}
+              className={`px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-xl font-bold hover:shadow-lg transition-all duration-300 hover:scale-[1.02] animate-slide-up ${
+                !isAdmin ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              style={{ animationDelay: '200ms' }}
+            >
+              {isAdmin ? 'Create Group Chat' : 'Only Admins Can Create Groups'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Add CSS animations
   return (
     <>
       <style>{styles}</style>
       
-      {/* Loading Overlay */}
-      {isLoading && <LoadingOverlay message={loadingMessage} />}
-      
+      {/* Main Loading Overlay */}
+      {isLoading.initial && (
+        <LoadingOverlay 
+          message={loadingSteps[loadingStep]}
+          progress={loadingProgress}
+          subMessage={loadingStep < loadingSteps.length - 1 ? "Please wait..." : "Almost ready!"}
+        />
+      )}
+
+      {/* Message Loading Overlay (when switching conversations) */}
+      {isLoading.messages && !isLoading.initial && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-40 flex items-center justify-center animate-fade-in">
+          <div className="text-center">
+            <LoadingAnimation type="spinner" size="large" />
+            <p className="text-red-600/70 mt-4 text-sm font-medium animate-pulse-slow">
+              Loading conversation...
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={showConfirmation}
@@ -2130,7 +2778,9 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
         type={confirmationConfig.type}
       />
 
-      <div className={`h-full flex flex-col md:flex-row rounded-2xl overflow-hidden bg-gradient-to-br from-white to-red-50/30 shadow-2xl ${pageTransition ? 'page-transition-enter-active' : 'animate-fade-in'}`}>
+      <div className={`h-full flex flex-col md:flex-row rounded-2xl overflow-hidden bg-gradient-to-br from-white to-red-50/30 shadow-2xl transition-all duration-300 ${
+        pageTransition ? 'animate-scale-in' : ''
+      }`}>
         {/* Member Search Modal */}
         <div 
           className={`fixed inset-0 md:absolute md:inset-auto md:top-20 md:right-6 bg-black/70 backdrop-blur-sm z-40 flex items-center justify-center p-4 ${
@@ -2850,19 +3500,26 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
                 <div className="animate-slide-in">
                   <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
-                      connectionStatus === 'connected' 
-                        ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 animate-pulse-glow' 
-                        : connectionStatus === 'connecting'
-                        ? 'bg-gradient-to-r from-amber-100 to-orange-100 text-amber-800 animate-pulse-slow'
-                        : 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800'
-                    }`}>
-                      {connectionStatus === 'connected' ? 
-                        <FiWifi className="w-4 h-4" /> : 
-                        <FiWifiOff className="w-4 h-4" />
-                      }
-                      {connectionStatus === 'connected' ? 'Live' : connectionStatus === 'connecting' ? 'Connecting' : 'Offline'}
-                    </span>
+                    {connectionStatus === 'connecting' ? (
+                      <div className="flex items-center gap-2">
+                        <LoadingAnimation type="dots" size="small" />
+                        <span className="text-sm text-red-600/70 animate-pulse-slow">
+                          Connecting...
+                        </span>
+                      </div>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                        connectionStatus === 'connected' 
+                          ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 animate-pulse-glow' 
+                          : 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800'
+                      }`}>
+                        {connectionStatus === 'connected' ? 
+                          <FiWifi className="w-4 h-4" /> : 
+                          <FiWifiOff className="w-4 h-4" />
+                        }
+                        {connectionStatus === 'connected' ? 'Live' : 'Offline'}
+                      </span>
+                    )}
                     <span className="text-sm text-red-600/70">
                       • {onlineUsers.size} online
                     </span>
@@ -2891,175 +3548,71 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
 
               {/* All Workspace Members List - Left Sidebar */}
               <div className="mb-6 animate-slide-up">
-                <h3 className="font-bold text-gray-900 text-lg mb-4">All Members ({allMembers.length})</h3>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                  {allMembers.map((member, index) => {
-                    const isOnline = isUserOnline(member.user_id);
-                    const isCurrentUser = member.user_id === currentUser?.id;
-                    
-                    return (
-                      <div 
-                        key={member.user_id}
-                        className={`flex items-center gap-3 p-3 rounded-xl animate-slide-in ${
-                          isCurrentUser 
-                            ? 'bg-gradient-to-r from-red-50 to-pink-50 animate-pulse-glow' 
-                            : 'hover:bg-red-50'
-                        }`}
-                        style={{ animationDelay: `${index * 30}ms` }}
-                      >
-                        <div className="relative">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-md">
-                            <span className="text-white font-bold">
-                              {member.avatar}
-                            </span>
-                          </div>
-                          <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
-                            isOnline ? 'bg-green-500 animate-pulse-slow' : 'bg-gray-400'
-                          }`}></span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900 truncate">
-                              {member.name}
-                              {isCurrentUser && ' (You)'}
-                            </p>
-                            {isOnline && (
-                              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full animate-pulse-slow">
-                                Online
-                              </span>
-                            )}
+                <h3 className="font-bold text-gray-900 text-lg mb-4">
+                  All Members {allMembers.length > 0 ? `(${allMembers.length})` : ''}
+                </h3>
+                {allMembers.length === 0 ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="animate-pulse-slow" style={{ animationDelay: `${i * 0.1}s` }}>
+                        <div className="flex items-center gap-3 p-3 rounded-xl">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 w-24 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+                            <div className="h-2 w-16 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-2 stagger">
+                    {allMembers.map((member, index) => {
+                      const isOnline = isUserOnline(member.user_id);
+                      const isCurrentUser = member.user_id === currentUser?.id;
+                      
+                      return (
+                        <div 
+                          key={member.user_id}
+                          className={`flex items-center gap-3 p-3 rounded-xl ${
+                            isCurrentUser 
+                              ? 'bg-gradient-to-r from-red-50 to-pink-50 animate-pulse-glow' 
+                              : 'hover:bg-red-50'
+                          }`}
+                        >
+                          <div className="relative">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-md">
+                              <span className="text-white font-bold">
+                                {member.avatar}
+                              </span>
+                            </div>
+                            <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
+                              isOnline ? 'bg-green-500 animate-pulse-slow' : 'bg-gray-400'
+                            }`}></span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-gray-900 truncate">
+                                {member.name}
+                                {isCurrentUser && ' (You)'}
+                              </p>
+                              {isOnline && (
+                                <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full animate-pulse-slow">
+                                  Online
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Conversations List */}
-            <div className="p-4">
-              <h3 className="font-bold text-gray-900 text-lg mb-4 px-2">Your Conversations</h3>
-              
-              {conversations.length > 0 ? (
-                conversations.map((conv, index) => {
-                  const unreadCount = messages.filter(msg => 
-                    msg.conversation_id === conv.id && 
-                    !msg.read_by?.includes(currentUser?.id) &&
-                    msg.sender_id !== currentUser?.id
-                  ).length;
-
-                  const otherMemberName = getOtherMemberName(conv);
-                  const convMembers = getConversationMembers(conv.id);
-                  const memberCount = convMembers.length;
-
-                  const otherMember = conversationOtherMembers[conv.id];
-                  const isOtherMemberOnline = otherMember ? isUserOnline(otherMember.user_id) : false;
-
-                  return (
-                    <div
-                      key={conv.id}
-                      onClick={() => setActiveConversation(conv)}
-                      className={`group p-4 rounded-2xl cursor-pointer transition-all duration-300 mb-3 animate-slide-in ${
-                        activeConversation?.id === conv.id
-                          ? 'bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-500 shadow-lg animate-pulse-glow'
-                          : 'hover:bg-red-50 border border-transparent hover:border-red-200'
-                      }`}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center shadow-md group-hover:shadow-xl transition-all duration-300 ${
-                          conv.is_group
-                            ? 'bg-gradient-to-br from-pink-500 to-rose-600'
-                            : 'bg-gradient-to-br from-red-500 to-pink-600'
-                        }`}>
-                          {conv.is_group ? (
-                            <FiUsers className="w-7 h-7 text-white" />
-                          ) : (
-                            <span className="text-white font-bold text-xl">
-                              {otherMemberName?.charAt(0).toUpperCase() || "T"}
-                            </span>
-                          )}
-                          {!conv.is_group && (
-                            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                              isOtherMemberOnline ? 'bg-green-500 animate-pulse-slow' : 'bg-gray-400'
-                            }`}></div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="font-bold text-gray-900 truncate text-lg">
-                              {otherMemberName}
-                            </p>
-                            {conv.last_message_at && (
-                              <span className="text-xs text-red-600/70 whitespace-nowrap">
-                              {new Date(conv.last_message_at + 'Z').toLocaleString('en-PK', {
-  day: '2-digit',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: true,
-  timeZone: 'Asia/Karachi'
-})}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <p className="text-gray-600 truncate text-sm flex-1">
-                              {conv.last_message || "Start a conversation..."}
-                            </p>
-                            {unreadCount > 0 && (
-                              <span className="bg-gradient-to-r from-red-500 to-pink-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center ml-2 flex-shrink-0 shadow-sm animate-pulse-glow">
-                                {unreadCount}
-                              </span>
-                            )}
-                          </div>
-                          {conv.is_group && memberCount > 0 && (
-                            <div className="flex items-center gap-2 mt-2">
-                              <p className="text-xs text-red-600/70">
-                                {memberCount} member{memberCount !== 1 ? 's' : ''}
-                              </p>
-                              {conversationOwner[conv.id] && (
-                                <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
-                                  Owner: {conversationOwner[conv.id]?.name}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-12 animate-slide-up">
-                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center animate-float">
-                    <FiMessageSquare className="w-12 h-12 text-red-400" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">No conversations yet</h3>
-                  <p className="text-red-600/70 mb-4">Start chatting with your team</p>
-                  <div className="flex flex-col gap-3 mt-6">
-                    <button
-                      onClick={handleStartNewChat}
-                      className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-bold hover:shadow-lg transition-all duration-300 hover:scale-[1.02] animate-slide-up"
-                      style={{ animationDelay: '100ms' }}
-                    >
-                      Start Direct Message
-                    </button>
-                    <button
-                      onClick={handleStartNewGroupChat}
-                      disabled={!isAdmin}
-                      className={`px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-xl font-bold hover:shadow-lg transition-all duration-300 hover:scale-[1.02] animate-slide-up ${
-                        !isAdmin ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                      style={{ animationDelay: '200ms' }}
-                    >
-                      {isAdmin ? 'Create Group Chat' : 'Only Admins Can Create Groups'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {renderConversationList()}
           </div>
 
           {/* Chat Messages Area */}
@@ -3068,70 +3621,80 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
               <div className="sticky top-0 bg-gradient-to-b from-white to-red-50/70 p-4 lg:p-6 border-b border-red-200 shadow-sm z-10 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 lg:gap-4">
-                    <div className="flex items-center gap-3 lg:gap-4">
-                      <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-2xl flex items-center justify-center shadow-md hover:shadow-xl transition-all duration-300 ${
-                        activeConversation?.is_group
-                          ? 'bg-gradient-to-br from-pink-500 to-rose-600'
-                          : 'bg-gradient-to-br from-red-500 to-pink-600'
-                      }`}>
-                        {activeConversation?.is_group ? (
-                          <FiUsers className="w-6 h-6 lg:w-7 lg:h-7 text-white" />
-                        ) : (
-                          <span className="text-white font-bold text-xl lg:text-2xl">
-                            {getOtherMemberName(activeConversation)?.charAt(0).toUpperCase() || "T"}
-                          </span>
-                        )}
+                    {isLoading.messages ? (
+                      <div className="flex items-center gap-3 lg:gap-4">
+                        <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-gradient-to-r from-red-100 to-pink-100 shimmer animate-pulse-slow"></div>
+                        <div className="space-y-2">
+                          <div className="h-6 w-32 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+                          <div className="h-4 w-24 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h2 className="font-bold text-gray-900 text-lg lg:text-2xl truncate">
-                          {getOtherMemberName(activeConversation)}
-                        </h2>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    ) : (
+                      <div className="flex items-center gap-3 lg:gap-4">
+                        <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-2xl flex items-center justify-center shadow-md hover:shadow-xl transition-all duration-300 ${
+                          activeConversation?.is_group
+                            ? 'bg-gradient-to-br from-pink-500 to-rose-600'
+                            : 'bg-gradient-to-br from-red-500 to-pink-600'
+                        }`}>
                           {activeConversation?.is_group ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-red-600/70 text-sm lg:text-base">
-                                Group • {getConversationMembers(activeConversation.id).length} members
-                              </span>
-                              {conversationOwner[activeConversation.id] && (
-                                <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
-                                  Owner: {conversationOwner[activeConversation.id]?.name}
-                                </span>
-                              )}
-                              <button
-                                onClick={handleOpenGroupSettings}
-                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1.5 rounded-lg transition-colors duration-300"
-                                title="Group settings"
-                              >
-                                <FiSettings className="w-4 h-4" />
-                              </button>
-                            </div>
+                            <FiUsers className="w-6 h-6 lg:w-7 lg:h-7 text-white" />
                           ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="text-red-600/70 text-sm lg:text-base">
-                                Direct message
-                              </span>
-                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id)
-                                  ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 animate-pulse-slow'
-                                  : 'bg-red-100 text-red-600'
-                              }`}>
-                                {conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id) ? 'Online' : 'Offline'}
-                              </span>
-                            </div>
-                          )}
-                          {getTypingUsersText() && (
-                            <span className="text-red-600 font-medium text-sm animate-pulse flex items-center gap-1">
-                              <div className="flex gap-1">
-                                <span className="w-2 h-2 bg-red-600 rounded-full animate-typing-dot"></span>
-                                <span className="w-2 h-2 bg-red-600 rounded-full animate-typing-dot" style={{ animationDelay: '0.2s' }}></span>
-                                <span className="w-2 h-2 bg-red-600 rounded-full animate-typing-dot" style={{ animationDelay: '0.4s' }}></span>
-                              </div>
-                              {getTypingUsersText()}
+                            <span className="text-white font-bold text-xl lg:text-2xl">
+                              {getOtherMemberName(activeConversation)?.charAt(0).toUpperCase() || "T"}
                             </span>
                           )}
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <h2 className="font-bold text-gray-900 text-lg lg:text-2xl truncate">
+                            {getOtherMemberName(activeConversation)}
+                          </h2>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {activeConversation?.is_group ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-red-600/70 text-sm lg:text-base">
+                                  Group • {getConversationMembers(activeConversation.id).length} members
+                                </span>
+                                {conversationOwner[activeConversation.id] && (
+                                  <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
+                                    Owner: {conversationOwner[activeConversation.id]?.name}
+                                  </span>
+                                )}
+                                <button
+                                  onClick={handleOpenGroupSettings}
+                                  className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1.5 rounded-lg transition-colors duration-300"
+                                  title="Group settings"
+                                >
+                                  <FiSettings className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="text-red-600/70 text-sm lg:text-base">
+                                  Direct message
+                                </span>
+                                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                  conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id)
+                                    ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 animate-pulse-slow'
+                                    : 'bg-red-100 text-red-600'
+                                }`}>
+                                  {conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id) ? 'Online' : 'Offline'}
+                                </span>
+                              </div>
+                            )}
+                            {getTypingUsersText() && (
+                              <span className="text-red-600 font-medium text-sm animate-pulse flex items-center gap-1">
+                                <div className="flex gap-1">
+                                  <span className="w-2 h-2 bg-red-600 rounded-full animate-typing-dot"></span>
+                                  <span className="w-2 h-2 bg-red-600 rounded-full animate-typing-dot" style={{ animationDelay: '0.2s' }}></span>
+                                  <span className="w-2 h-2 bg-red-600 rounded-full animate-typing-dot" style={{ animationDelay: '0.4s' }}></span>
+                                </div>
+                                {getTypingUsersText()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {activeConversation?.is_group && (
@@ -3146,102 +3709,17 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 lg:p-6">
-                {messages.length > 0 ? (
-                  <div className="space-y-4 lg:space-y-6">
-                    {messages.map((message, index) => {
-                      const isCurrentUser = message.sender_id === currentUser?.id;
-                      const showAvatar = index === 0 || messages[index - 1]?.sender_id !== message.sender_id;
-                      const senderName = message.sender?.name || "Unknown User";
-                      const isSenderOnline = isUserOnline(message.sender_id);
-                      
-                      return (
-                        <div
-                          key={message.id || message.temp_id}
-                          className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${showAvatar ? 'mt-4 lg:mt-6' : 'mt-2 lg:mt-3'} animate-slide-up`}
-                          style={{ animationDelay: `${index * 30}ms` }}
-                        >
-                          <div className={`max-w-[85%] lg:max-w-2xl ${isCurrentUser ? 'ml-auto' : ''}`}>
-                            {!isCurrentUser && showAvatar && (
-                              <div className="flex items-center gap-2 mb-1 lg:mb-2">
-                                <div className="relative">
-                                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-md">
-                                    <span className="text-white font-bold text-sm lg:text-base">
-                                      {senderName?.charAt(0).toUpperCase() || "U"}
-                                    </span>
-                                  </div>
-                                  {isSenderOnline && (
-                                    <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white bg-green-500 animate-pulse-slow"></div>
-                                  )}
-                                </div>
-                                <div>
-                                  <span className="font-bold text-gray-900 text-sm lg:text-base">
-                                    {senderName}
-                                  </span>
-                                  {isSenderOnline && (
-                                    <span className="text-xs text-green-600 ml-2 animate-pulse-slow">• Online</span>
-                                  )}
-                                </div>
-                              </div>
-                            )}
+              {/* Messages Area */}
+              {renderMessageArea()}
 
-                            <div className={`relative group rounded-2xl lg:rounded-3xl px-4 lg:px-6 py-3 lg:py-4 ${
-                              isCurrentUser
-                                ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-br-none shadow-lg hover:shadow-xl transition-all duration-300'
-                                : 'bg-white border border-red-200 rounded-bl-none shadow-sm hover:shadow-md transition-all duration-300'
-                            } ${message.id ? '' : 'opacity-70'}`}>
-                              <p className="break-words text-sm lg:text-base">{message.content}</p>
-                              <div className={`flex items-center justify-end gap-2 mt-2 ${
-                                isCurrentUser ? 'text-red-200' : 'text-red-600/70'
-                              }`}>
-                                <span className="text-xs lg:text-sm">
-                       {new Date(message.created_at + 'Z').toLocaleString('en-PK', {
-  day: '2-digit',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: true,
-  timeZone: 'Asia/Karachi'
-})}
-                                </span>
-                                {isCurrentUser && message.read_by && message.read_by.length > 1 && (
-                                  <FiCheckCircle className="w-4 h-4 lg:w-5 lg:h-5" title="Read" />
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 lg:py-24 animate-slide-up">
-                    <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 lg:mb-10 rounded-full bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center animate-float">
-                      <FiMessageSquare className="w-12 h-12 lg:w-16 lg:h-16 text-red-400" />
-                    </div>
-                    <h3 className="text-xl lg:text-3xl font-bold text-gray-900 mb-2 lg:mb-4 animate-text-slide-up" style={{animationDelay: '0.1s'}}>No messages yet</h3>
-                    <p className="text-red-600/70 text-base lg:text-xl mb-8 lg:mb-12 max-w-md lg:max-w-2xl mx-auto animate-text-slide-up" style={{animationDelay: '0.2s'}}>
-                      Start the conversation by sending your first message
-                    </p>
-                    <div className="flex gap-3 justify-center animate-text-slide-up" style={{animationDelay: '0.3s'}}>
-                      <div className="w-3 h-3 bg-red-500 rounded-full animate-bounce-subtle"></div>
-                      <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce-subtle" style={{animationDelay: '0.2s'}}></div>
-                      <div className="w-3 h-3 bg-rose-500 rounded-full animate-bounce-subtle" style={{animationDelay: '0.4s'}}></div>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
+              {/* Message Input with Loading State */}
               <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white to-red-50/70 p-4 lg:p-6 border-t border-red-200 shadow-lg backdrop-blur-sm animate-slide-up">
                 {getTypingUsersText() && (
                   <div className="mb-3 lg:mb-4 flex items-center gap-2 text-red-600 bg-red-50 px-4 py-2 rounded-xl animate-slide-in">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-red-600 rounded-full animate-typing-dot"></span>
-                      <span className="w-2 h-2 bg-red-600 rounded-full animate-typing-dot" style={{ animationDelay: '0.2s' }}></span>
-                      <span className="w-2 h-2 bg-red-600 rounded-full animate-typing-dot" style={{ animationDelay: '0.4s' }}></span>
-                    </div>
-                    <span className="font-medium text-sm lg:text-base">{getTypingUsersText()}</span>
+                    <LoadingAnimation type="dots" />
+                    <span className="font-medium text-sm lg:text-base animate-wave">
+                      {getTypingUsersText()}
+                    </span>
                   </div>
                 )}
                 
@@ -3253,18 +3731,18 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
                     onChange={handleInputChange}
                     onKeyDown={handleKeyPress}
                     placeholder={`Message ${getOtherMemberName(activeConversation)}...`}
-                    className="flex-1 px-4 lg:px-6 py-3 lg:py-4 border border-red-300 rounded-xl lg:rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm lg:text-base bg-white placeholder-red-300"
-                    disabled={messageLoading}
+                    className="flex-1 px-4 lg:px-6 py-3 lg:py-4 border border-red-300 rounded-xl lg:rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm lg:text-base bg-white placeholder-red-300 transition-all-300"
+                    disabled={messageLoading || isLoading.messages}
                   />
                   <button
                     onClick={sendMessage}
-                    disabled={!newMessage.trim() || messageLoading}
-                    className="p-3 lg:p-4 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl lg:rounded-2xl hover:shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed animate-pulse-glow"
+                    disabled={!newMessage.trim() || messageLoading || isLoading.messages}
+                    className="p-3 lg:p-4 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl lg:rounded-2xl hover:shadow-lg transition-all-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
                   >
                     {messageLoading ? (
-                      <div className="w-5 h-5 lg:w-6 lg:h-6 border-2 border-white border-t-transparent rounded-full animate-spin-gentle"></div>
+                      <LoadingAnimation type="spinner" size="small" className="text-white" />
                     ) : (
-                      <FiSend className="w-5 h-5 lg:w-6 lg:h-6" />
+                      <FiSend className="w-5 h-5 lg:w-6 lg:h-6 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                     )}
                   </button>
                 </div>
@@ -3321,39 +3799,51 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
                       <FiChevronLeft className="w-6 h-6 text-red-600" />
                     </button>
                     <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-md ${
-                        activeConversation?.is_group
-                          ? 'bg-gradient-to-br from-pink-500 to-rose-600'
-                          : 'bg-gradient-to-br from-red-500 to-pink-600'
-                      }`}>
-                        {activeConversation?.is_group ? (
-                          <FiUsers className="w-6 h-6 text-white" />
-                        ) : (
-                          <span className="text-white font-bold text-xl">
-                            {getOtherMemberName(activeConversation)?.charAt(0).toUpperCase() || "T"}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h2 className="font-bold text-gray-900 text-lg truncate">
-                          {getOtherMemberName(activeConversation)}
-                        </h2>
-                        <div className="flex items-center gap-2 mt-1">
-                          {activeConversation?.is_group ? (
-                            <span className="text-red-600/70 text-sm">
-                              {getConversationMembers(activeConversation.id).length} members
-                            </span>
-                          ) : (
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                              conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id)
-                                ? 'bg-green-100 text-green-800 animate-pulse-slow'
-                                : 'bg-red-100 text-red-600'
-                            }`}>
-                              {conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id) ? 'Online' : 'Offline'}
-                            </span>
-                          )}
+                      {isLoading.messages ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-red-100 to-pink-100 shimmer animate-pulse-slow"></div>
+                          <div className="space-y-2">
+                            <div className="h-5 w-24 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+                            <div className="h-3 w-16 rounded-full bg-gradient-to-r from-red-100 to-pink-100 shimmer"></div>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <>
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-md ${
+                            activeConversation?.is_group
+                              ? 'bg-gradient-to-br from-pink-500 to-rose-600'
+                              : 'bg-gradient-to-br from-red-500 to-pink-600'
+                          }`}>
+                            {activeConversation?.is_group ? (
+                              <FiUsers className="w-6 h-6 text-white" />
+                            ) : (
+                              <span className="text-white font-bold text-xl">
+                                {getOtherMemberName(activeConversation)?.charAt(0).toUpperCase() || "T"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h2 className="font-bold text-gray-900 text-lg truncate">
+                              {getOtherMemberName(activeConversation)}
+                            </h2>
+                            <div className="flex items-center gap-2 mt-1">
+                              {activeConversation?.is_group ? (
+                                <span className="text-red-600/70 text-sm">
+                                  {getConversationMembers(activeConversation.id).length} members
+                                </span>
+                              ) : (
+                                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                  conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id)
+                                    ? 'bg-green-100 text-green-800 animate-pulse-slow'
+                                    : 'bg-red-100 text-red-600'
+                                }`}>
+                                  {conversationOtherMembers[activeConversation.id] && isUserOnline(conversationOtherMembers[activeConversation.id].user_id) ? 'Online' : 'Offline'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -3368,76 +3858,90 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4">
-                {messages.length > 0 ? (
-                  <div className="space-y-4">
-                    {messages.map((message, index) => {
-                      const isCurrentUser = message.sender_id === currentUser?.id;
-                      const showAvatar = index === 0 || messages[index - 1]?.sender_id !== message.sender_id;
-                      const senderName = message.sender?.name || "Unknown User";
-                      
-                      return (
-                        <div
-                          key={message.id || message.temp_id}
-                          className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${showAvatar ? 'mt-6' : 'mt-2'} animate-slide-up`}
-                          style={{ animationDelay: `${index * 30}ms` }}
-                        >
-                          <div className={`max-w-[85%] ${isCurrentUser ? 'ml-auto' : ''}`}>
-                            {!isCurrentUser && showAvatar && (
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-md">
-                                  <span className="text-white font-bold text-sm">
-                                    {senderName?.charAt(0).toUpperCase() || "U"}
+              {isLoading.messages ? (
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="stagger space-y-4">
+                    <LoadingSkeleton type="message" count={3} />
+                    <div className="text-center py-8">
+                      <LoadingAnimation type="dots" className="mx-auto" />
+                      <p className="text-red-600/70 mt-4 text-sm animate-pulse-slow">
+                        Loading messages...
+                      </p>
+                    </div>
+                    <LoadingSkeleton type="message" count={2} />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto p-4">
+                  {messages.length > 0 ? (
+                    <div className="space-y-4 stagger">
+                      {messages.map((message, index) => {
+                        const isCurrentUser = message.sender_id === currentUser?.id;
+                        const showAvatar = index === 0 || messages[index - 1]?.sender_id !== message.sender_id;
+                        const senderName = message.sender?.name || "Unknown User";
+                        
+                        return (
+                          <div
+                            key={message.id || message.temp_id}
+                            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${showAvatar ? 'mt-6' : 'mt-2'}`}
+                          >
+                            <div className={`max-w-[85%] ${isCurrentUser ? 'ml-auto' : ''}`}>
+                              {!isCurrentUser && showAvatar && (
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-md">
+                                    <span className="text-white font-bold text-sm">
+                                      {senderName?.charAt(0).toUpperCase() || "U"}
+                                    </span>
+                                  </div>
+                                  <span className="font-bold text-gray-900 text-sm">
+                                    {senderName}
                                   </span>
                                 </div>
-                                <span className="font-bold text-gray-900 text-sm">
-                                  {senderName}
-                                </span>
-                              </div>
-                            )}
+                              )}
 
-                            <div className={`relative group rounded-2xl px-4 py-3 ${
-                              isCurrentUser
-                                ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-br-none shadow-lg'
-                                : 'bg-white border border-red-200 rounded-bl-none shadow-sm'
-                            } ${message.id ? '' : 'opacity-70'}`}>
-                              <p className="break-words text-sm">{message.content}</p>
-                              <div className={`flex items-center justify-end gap-2 mt-2 ${
-                                isCurrentUser ? 'text-red-200' : 'text-red-600/70'
-                              }`}>
-                                <span className="text-xs">
-                                {new Date(message.created_at + 'Z').toLocaleString('en-PK', {
-  day: '2-digit',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: true,
-  timeZone: 'Asia/Karachi'
-})}
-                                </span>
-                                {isCurrentUser && message.read_by && message.read_by.length > 1 && (
-                                  <FiCheckCircle className="w-4 h-4" />
-                                )}
+                              <div className={`relative group rounded-2xl px-4 py-3 ${
+                                isCurrentUser
+                                  ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-br-none shadow-lg'
+                                  : 'bg-white border border-red-200 rounded-bl-none shadow-sm'
+                              } ${message.id ? '' : 'opacity-70'}`}>
+                                <p className="break-words text-sm">{message.content}</p>
+                                <div className={`flex items-center justify-end gap-2 mt-2 ${
+                                  isCurrentUser ? 'text-red-200' : 'text-red-600/70'
+                                }`}>
+                                  <span className="text-xs">
+                                    {new Date(message.created_at + 'Z').toLocaleString('en-PK', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: true,
+                                      timeZone: 'Asia/Karachi'
+                                    })}
+                                  </span>
+                                  {isCurrentUser && message.read_by && message.read_by.length > 1 && (
+                                    <FiCheckCircle className="w-4 h-4" />
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center animate-float">
-                      <FiMessageSquare className="w-12 h-12 text-red-400" />
+                        );
+                      })}
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">No messages yet</h3>
-                    <p className="text-red-600/70 text-base">
-                      Start the conversation
-                    </p>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center animate-float">
+                        <FiMessageSquare className="w-12 h-12 text-red-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">No messages yet</h3>
+                      <p className="text-red-600/70 text-base">
+                        Start the conversation
+                      </p>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
 
               <div className="sticky bottom-0 bg-white p-4 border-t border-red-200 shadow-lg">
                 <div className="flex items-center gap-2">
@@ -3449,15 +3953,15 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
                     onKeyDown={handleKeyPress}
                     placeholder={`Message...`}
                     className="flex-1 px-4 py-3 border border-red-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm placeholder-red-300"
-                    disabled={messageLoading}
+                    disabled={messageLoading || isLoading.messages}
                   />
                   <button
                     onClick={sendMessage}
-                    disabled={!newMessage.trim() || messageLoading}
+                    disabled={!newMessage.trim() || messageLoading || isLoading.messages}
                     className="p-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {messageLoading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin-gentle"></div>
+                      <LoadingAnimation type="spinner" size="small" className="text-white" />
                     ) : (
                       <FiSend className="w-5 h-5" />
                     )}
@@ -3474,17 +3978,26 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
                     <div>
                       <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
-                          connectionStatus === 'connected' 
-                            ? 'bg-green-100 text-green-800 animate-pulse-glow' 
-                            : 'bg-amber-100 text-amber-800 animate-pulse-slow'
-                        }`}>
-                          {connectionStatus === 'connected' ? 
-                            <FiWifi className="w-4 h-4" /> : 
-                            <FiWifiOff className="w-4 h-4" />
-                          }
-                          {connectionStatus === 'connected' ? 'Live' : 'Connecting'}
-                        </span>
+                        {connectionStatus === 'connecting' ? (
+                          <div className="flex items-center gap-2">
+                            <LoadingAnimation type="dots" size="small" />
+                            <span className="text-sm text-red-600/70 animate-pulse-slow">
+                              Connecting...
+                            </span>
+                          </div>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                            connectionStatus === 'connected' 
+                              ? 'bg-green-100 text-green-800 animate-pulse-glow' 
+                              : 'bg-amber-100 text-amber-800 animate-pulse-slow'
+                          }`}>
+                            {connectionStatus === 'connected' ? 
+                              <FiWifi className="w-4 h-4" /> : 
+                              <FiWifiOff className="w-4 h-4" />
+                            }
+                            {connectionStatus === 'connected' ? 'Live' : 'Connecting'}
+                          </span>
+                        )}
                         <span className="text-sm text-red-600/70">
                           • {onlineUsers.size} online
                         </span>
@@ -3555,63 +4068,7 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
                   </div>
                 </div>
 
-                <div className="p-4">
-                  <h3 className="font-bold text-gray-900 text-lg mb-4 px-2">Your Conversations</h3>
-                  
-                  {conversations.length > 0 ? (
-                    conversations.map((conv, index) => {
-                      const otherMemberName = getOtherMemberName(conv);
-                      const otherMember = conversationOtherMembers[conv.id];
-                      const isOtherMemberOnline = otherMember ? isUserOnline(otherMember.user_id) : false;
-
-                      return (
-                        <div
-                          key={conv.id}
-                          onClick={() => setActiveConversation(conv)}
-                          className="p-4 rounded-2xl hover:bg-red-50 cursor-pointer transition-all duration-300 mb-3 border border-red-200 animate-slide-in"
-                          style={{ animationDelay: `${index * 50}ms` }}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center shadow-md ${
-                              conv.is_group
-                                ? 'bg-gradient-to-br from-pink-500 to-rose-600'
-                                : 'bg-gradient-to-br from-red-500 to-pink-600'
-                            }`}>
-                              {conv.is_group ? (
-                                <FiUsers className="w-7 h-7 text-white" />
-                              ) : (
-                                <span className="text-white font-bold text-xl">
-                                  {otherMemberName?.charAt(0).toUpperCase() || "T"}
-                                </span>
-                              )}
-                              {!conv.is_group && (
-                                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                                  isOtherMemberOnline ? 'bg-green-500 animate-pulse-slow' : 'bg-gray-400'
-                                }`}></div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-gray-900 truncate text-lg">
-                                {otherMemberName}
-                              </p>
-                              <p className="text-red-600/70 truncate text-sm">
-                                {conv.last_message || "Start a conversation..."}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center animate-float">
-                        <FiMessageSquare className="w-12 h-12 text-red-400" />
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">No conversations</h3>
-                      <p className="text-red-600/70 mb-4">Start chatting</p>
-                    </div>
-                  )}
-                </div>
+                {renderConversationList()}
               </div>
             </div>
           )}
@@ -3619,14 +4076,17 @@ export default function WorkspaceChat({ workspaceId, currentUser }) {
 
         {/* Error Toast with Red Theme */}
         {error && (
-          <div className="fixed bottom-4 right-4 z-50 animate-slide-in">
+          <div className="fixed bottom-4 right-4 z-50 animate-slide-in-right">
             <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl shadow-[0_10px_40px_-15px_rgba(239,68,68,0.3)] p-4 max-w-sm backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <FiAlertCircle className="w-5 h-5 text-red-600 animate-pulse-slow" />
-                <p className="text-red-700 font-medium">{error}</p>
+                <div className="relative">
+                  <FiAlertCircle className="w-5 h-5 text-red-600 animate-pulse-slow relative z-10" />
+                  <div className="absolute inset-0 rounded-full bg-red-600/20 animate-ping-slow"></div>
+                </div>
+                <p className="text-red-700 font-medium flex-1">{error}</p>
                 <button
                   onClick={() => setError(null)}
-                  className="text-red-500 hover:text-red-700 transition-colors"
+                  className="text-red-500 hover:text-red-700 transition-colors p-1 hover:bg-red-100 rounded-lg"
                 >
                   <FiX className="w-4 h-4" />
                 </button>
