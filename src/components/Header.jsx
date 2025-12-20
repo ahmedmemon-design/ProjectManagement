@@ -62,11 +62,8 @@ export default function Header() {
                   <img 
                     src="/logo.png" 
                     alt="BigBull Digital Logo" 
-                    className="w-6 h-6 sm:w-20 sm:h-20"
+                    className="w-20 h-20 sm:w-32 sm:h-32"
                   />
-                <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
-                  BIG BULL CAMP
-                </span>
               </motion.div>
 
               {/* Desktop Navigation */}
@@ -208,15 +205,12 @@ export default function Header() {
               <div className="p-6 border-b border-red-100">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center">
                       <img 
                         src="/logo.png" 
                         alt="BigBull Digital Logo" 
-                        className="w-8 h-8 object-contain"
+                        className="w-20 h-20 object-contain"
                       />
-                    </div>
                     <div>
-                      <h2 className="font-bold text-gray-900">BIG BULL CAMP</h2>
                       <p className="text-sm text-red-500 font-medium">Menu</p>
                     </div>
                   </div>
