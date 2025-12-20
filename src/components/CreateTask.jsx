@@ -401,7 +401,7 @@ Due Date: ${dueDate ? new Date(dueDate).toLocaleDateString() : "Not set"}
           <div className="flex items-center justify-between mb-3">
             <label className="flex items-center gap-2 text-gray-700 font-medium">
               <FiMail className="w-4 h-4" />
-              Email Notification (via Web3Forms)
+              Email Notification
             </label>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -425,10 +425,7 @@ Due Date: ${dueDate ? new Date(dueDate).toLocaleDateString() : "Not set"}
               <p>⚠️ Selected user doesn't have an email address</p>
             </div>
           )}
-          
-          <p className="text-xs text-gray-500 mt-2">
-            Uses Web3Forms for free email delivery (100 emails/month free)
-          </p>
+
         </div>
 
         {/* Attachments Section */}
